@@ -1,0 +1,48 @@
+protocol: audio-response
+version: 1
+description: Protocol for audio response messages, including buffers, tones, and sound types.
+
+transport:
+  ble:
+    service_uuid: 12345678-1234-5678-1234-56789abcdef0
+    characteristics:
+      - name: audio_response
+        uuid: 12345678-1234-5678-1234-56789abcdef1
+        properties: [read, write, notify]
+
+messages:
+  buffer:
+    description: A message containing audio data in a buffer format.
+    fields:
+      - name: length
+        type: uint16
+      - name: sampling_rate
+        type: uint16
+      - name: buffer
+        type: bytes[length]
+
+  tone:
+    description: A message containing audio data in a tone format.
+    fields:
+      - name: frequency
+        type: uint16
+      - name: duration
+        type: uint16
+
+  audio_response:
+    description: A message containing audio response data. Each point represents a frequency and its corresponding response value.
+    fields:
+      - name: points
+        type: uint8
+      - name: frequencies
+        type: uint16[points]
+      - name: response
+        type: uint16[points]
+
+  sound:
+    description: A message containing the sound to be played, which can be either a buffer or a tone.
+    fields:
+      - name: type
+        type: uint8
+      - name: data
+        type: buffer | tone

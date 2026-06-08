@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openearable-protocol-generator"
+version = "0.1.0"
+description = "Generate OpenEarable protocol bindings from YAML schemas."
+readme = "README.md"
+requires-python = ">=3.11"
+
+[project.scripts]
+protocol-generator = "protocol_generator.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["protocol_generator*"]
