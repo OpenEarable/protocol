@@ -14,9 +14,15 @@ Run the generator from the repository root:
 By default, schemas are read from `schemas/*/protocol.yml` and generated code is
 written to:
 
-- `generated/dart/*_protocol.dart`
+- `generated/dart/lib/open_earable_protocols.dart`
+- `generated/dart/lib/src/protocol_runtime.dart`
+- `generated/dart/lib/src/*_protocol.dart`
+- `generated/c/protocol_runtime.h`
+- `generated/c/protocol_runtime.c`
 - `generated/c/*_protocol.h`
 - `generated/c/*_protocol.c`
+- `generated/c/protocol_sources.cmake`
+- `generated/c/protocol_sources.mk`
 
 Custom directories can be provided when integrating with a build system:
 
@@ -33,6 +39,28 @@ Generate only one language target:
 The generator is implemented as the `protocol_generator` package. See
 [`docs/architecture.md`](docs/architecture.md) for module responsibilities and
 the process for adding another language.
+
+Each language emits one shared binary codec runtime. Generated protocol files
+import or include that runtime instead of embedding duplicate reader, writer,
+status, and primitive codec helpers.
+
+## Dart Package
+
+The generated Dart bindings form the publishable `open_earable_protocols`
+package under `generated/dart`. Flutter and Dart applications can depend on
+that directory and import all generated protocols from:
+
+```dart
+import 'package:open_earable_protocols/open_earable_protocols.dart';
+```
+
+Before publishing a release, update `generated/dart/pubspec.yaml` and
+`generated/dart/CHANGELOG.md`, regenerate the bindings, and run:
+
+```sh
+cd generated/dart
+dart pub publish --dry-run
+```
 
 ## Schema Format
 
@@ -78,4 +106,22 @@ second, and so on.
 Generated C structs use pointers for variable-length byte and array fields.
 The caller owns that memory and must allocate enough space before calling a
 decode function. The decoder fills the caller-provided buffers and reports
-`*_ERROR_INVALID_DATA` if the input is truncated or has an unknown union tag.
+`PROTOCOL_ERROR_INVALID_DATA` if the input is truncated or has an unknown union
+tag.
+Compile `protocol_runtime.c` once and link it together with all generated
+protocol-specific C sources. All generated C encode/decode functions return the
+shared `protocol_status_t` type.
+
+## C Package
+
+The generated C99 bindings under `generated/c` can be consumed by CMake, Make,
+or Zephyr. CMake projects can add the directory and link
+`OpenEarable::Protocols`. Make projects can either build the provided static
+library or include `protocol_sources.mk` to compile the generated sources
+directly.
+
+The repository is also a Zephyr module. Add it to a west manifest and Zephyr
+will compile the generated protocol sources and expose their headers
+automatically. See [`generated/c/README.md`](generated/c/README.md) for usage
+examples and [`docs/open-earable-2-integration.md`](docs/open-earable-2-integration.md)
+for firmware integration.

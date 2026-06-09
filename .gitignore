@@ -1,3 +1,6 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+generated/dart/.dart_tool/
+generated/dart/pubspec.lock
+generated/c/build/
