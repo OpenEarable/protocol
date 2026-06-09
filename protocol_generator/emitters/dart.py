@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import textwrap
+from collections.abc import Sequence
 
 from protocol_generator.emitters.base import LanguageEmitter
 from protocol_generator.model import (
@@ -48,10 +49,201 @@ DART_CODEC_METHODS = {
 class DartEmitter(LanguageEmitter):
     """Emit Dart value classes and binary codecs."""
 
-    def emit_files(self, protocol: Protocol, schema_path: pathlib.Path) -> tuple[GeneratedFile, ...]:
+    def emit_runtime_files(self) -> tuple[GeneratedFile, ...]:
+        """Emit the shared Dart protocol runtime."""
+
+        return (_DartRuntimeRenderer().render(),)
+
+    def emit_protocol_files(
+        self,
+        protocol: Protocol,
+        schema_path: pathlib.Path,
+    ) -> tuple[GeneratedFile, ...]:
         """Emit the Dart protocol library."""
 
         return (_DartRenderer(protocol, schema_path).render(),)
+
+    def emit_collection_files(
+        self,
+        protocols: Sequence[Protocol],
+    ) -> tuple[GeneratedFile, ...]:
+        """Emit the public package library that exports every protocol."""
+
+        exports = "".join(
+            f"export 'src/{snake_case(protocol.name)}_protocol.dart';\n"
+            for protocol in protocols
+        )
+        contents = (
+            "/// Binary protocol bindings for OpenEarable devices.\n"
+            "library;\n\n"
+            "export 'src/protocol_runtime.dart' show ProtocolFormatException;\n"
+            f"{exports}"
+        )
+        return (
+            GeneratedFile(
+                pathlib.Path("dart/lib/open_earable_protocols.dart"),
+                contents,
+            ),
+        )
+
+
+class _DartRuntimeRenderer:
+    """Render the shared Dart binary codec runtime."""
+
+    def render(self) -> GeneratedFile:
+        """Render the runtime library shared by generated protocols."""
+
+        return GeneratedFile(
+            pathlib.Path("dart/lib/src/protocol_runtime.dart"),
+            self._support_code(),
+        )
+
+    def _support_code(self) -> str:
+        return (
+            "// Generated shared protocol runtime. Do not edit by hand.\n"
+            "import 'dart:typed_data';\n\n"
+            + textwrap.dedent(
+                """
+                /// Error thrown when binary protocol data is malformed.
+                class ProtocolFormatException implements Exception {
+                  /// Creates a protocol format error with a human-readable [message].
+                  const ProtocolFormatException(this.message);
+
+                  /// Description of the malformed data.
+                  final String message;
+
+                  @override
+                  String toString() => 'ProtocolFormatException: $message';
+                }
+
+                /// Writes little-endian protocol values into a byte buffer.
+                class ProtocolWriter {
+                  final BytesBuilder _builder = BytesBuilder(copy: false);
+
+                  void uint8(int value) => _builder.add([value & 0xff]);
+
+                  void int8(int value) => _builder.add([value & 0xff]);
+
+                  void uint16(int value) {
+                    final data = ByteData(2)..setUint16(0, value, Endian.little);
+                    _builder.add(data.buffer.asUint8List());
+                  }
+
+                  void int16(int value) {
+                    final data = ByteData(2)..setInt16(0, value, Endian.little);
+                    _builder.add(data.buffer.asUint8List());
+                  }
+
+                  void uint32(int value) {
+                    final data = ByteData(4)..setUint32(0, value, Endian.little);
+                    _builder.add(data.buffer.asUint8List());
+                  }
+
+                  void int32(int value) {
+                    final data = ByteData(4)..setInt32(0, value, Endian.little);
+                    _builder.add(data.buffer.asUint8List());
+                  }
+
+                  void float32(double value) {
+                    final data = ByteData(4)..setFloat32(0, value, Endian.little);
+                    _builder.add(data.buffer.asUint8List());
+                  }
+
+                  void float64(double value) {
+                    final data = ByteData(8)..setFloat64(0, value, Endian.little);
+                    _builder.add(data.buffer.asUint8List());
+                  }
+
+                  void bytes(Uint8List value) => _builder.add(value);
+
+                  Uint8List takeBytes() => _builder.takeBytes();
+                }
+
+                /// Reads little-endian protocol values from a byte buffer.
+                class ProtocolReader {
+                  ProtocolReader(Uint8List bytes)
+                      : _data = ByteData.sublistView(bytes),
+                        _bytes = bytes;
+
+                  final ByteData _data;
+                  final Uint8List _bytes;
+                  int _offset = 0;
+
+                  void _require(int length) {
+                    if (_offset + length > _bytes.length) {
+                      throw const ProtocolFormatException('unexpected end of input');
+                    }
+                  }
+
+                  int uint8() {
+                    _require(1);
+                    return _data.getUint8(_offset++);
+                  }
+
+                  int int8() {
+                    _require(1);
+                    return _data.getInt8(_offset++);
+                  }
+
+                  int uint16() {
+                    _require(2);
+                    final value = _data.getUint16(_offset, Endian.little);
+                    _offset += 2;
+                    return value;
+                  }
+
+                  int int16() {
+                    _require(2);
+                    final value = _data.getInt16(_offset, Endian.little);
+                    _offset += 2;
+                    return value;
+                  }
+
+                  int uint32() {
+                    _require(4);
+                    final value = _data.getUint32(_offset, Endian.little);
+                    _offset += 4;
+                    return value;
+                  }
+
+                  int int32() {
+                    _require(4);
+                    final value = _data.getInt32(_offset, Endian.little);
+                    _offset += 4;
+                    return value;
+                  }
+
+                  double float32() {
+                    _require(4);
+                    final value = _data.getFloat32(_offset, Endian.little);
+                    _offset += 4;
+                    return value;
+                  }
+
+                  double float64() {
+                    _require(8);
+                    final value = _data.getFloat64(_offset, Endian.little);
+                    _offset += 8;
+                    return value;
+                  }
+
+                  Uint8List bytes(int length) {
+                    _require(length);
+                    final value = Uint8List.sublistView(_bytes, _offset, _offset + length);
+                    _offset += length;
+                    return value;
+                  }
+
+                  void finish() {
+                    if (_offset != _bytes.length) {
+                      throw ProtocolFormatException('trailing ${_bytes.length - _offset} byte(s)');
+                    }
+                  }
+                }
+
+                """
+            )
+        )
 
 
 class _DartRenderer:
@@ -66,160 +258,19 @@ class _DartRenderer:
         """Render the configured protocol into its generated Dart file."""
 
         return GeneratedFile(
-            pathlib.Path("dart") / f"{snake_case(self.protocol.name)}_protocol.dart",
+            pathlib.Path("dart/lib/src") / f"{snake_case(self.protocol.name)}_protocol.dart",
             self._emit(),
         )
 
     def _emit(self) -> str:
         parts = [
             generated_banner(self.schema_path),
-            "import 'dart:typed_data';\n\n",
-            self._support_code(),
+            "import 'dart:typed_data';\n",
+            "import 'protocol_runtime.dart';\n\n",
         ]
         for message in self.protocol.messages:
             parts.append(self._message(message))
         return "".join(parts)
-
-    def _support_code(self) -> str:
-        return textwrap.dedent(
-            """
-            /// Error thrown when binary protocol data is malformed.
-            class ProtocolFormatException implements Exception {
-              /// Creates a protocol format error with a human-readable [message].
-              const ProtocolFormatException(this.message);
-
-              /// Description of the malformed data.
-              final String message;
-
-              @override
-              String toString() => 'ProtocolFormatException: $message';
-            }
-
-            class _Writer {
-              final BytesBuilder _builder = BytesBuilder(copy: false);
-
-              void uint8(int value) => _builder.add([value & 0xff]);
-
-              void int8(int value) => _builder.add([value & 0xff]);
-
-              void uint16(int value) {
-                final data = ByteData(2)..setUint16(0, value, Endian.little);
-                _builder.add(data.buffer.asUint8List());
-              }
-
-              void int16(int value) {
-                final data = ByteData(2)..setInt16(0, value, Endian.little);
-                _builder.add(data.buffer.asUint8List());
-              }
-
-              void uint32(int value) {
-                final data = ByteData(4)..setUint32(0, value, Endian.little);
-                _builder.add(data.buffer.asUint8List());
-              }
-
-              void int32(int value) {
-                final data = ByteData(4)..setInt32(0, value, Endian.little);
-                _builder.add(data.buffer.asUint8List());
-              }
-
-              void float32(double value) {
-                final data = ByteData(4)..setFloat32(0, value, Endian.little);
-                _builder.add(data.buffer.asUint8List());
-              }
-
-              void float64(double value) {
-                final data = ByteData(8)..setFloat64(0, value, Endian.little);
-                _builder.add(data.buffer.asUint8List());
-              }
-
-              void bytes(Uint8List value) => _builder.add(value);
-
-              Uint8List takeBytes() => _builder.takeBytes();
-            }
-
-            class _Reader {
-              _Reader(Uint8List bytes)
-                  : _data = ByteData.sublistView(bytes),
-                    _bytes = bytes;
-
-              final ByteData _data;
-              final Uint8List _bytes;
-              int _offset = 0;
-
-              void _require(int length) {
-                if (_offset + length > _bytes.length) {
-                  throw const ProtocolFormatException('unexpected end of input');
-                }
-              }
-
-              int uint8() {
-                _require(1);
-                return _data.getUint8(_offset++);
-              }
-
-              int int8() {
-                _require(1);
-                return _data.getInt8(_offset++);
-              }
-
-              int uint16() {
-                _require(2);
-                final value = _data.getUint16(_offset, Endian.little);
-                _offset += 2;
-                return value;
-              }
-
-              int int16() {
-                _require(2);
-                final value = _data.getInt16(_offset, Endian.little);
-                _offset += 2;
-                return value;
-              }
-
-              int uint32() {
-                _require(4);
-                final value = _data.getUint32(_offset, Endian.little);
-                _offset += 4;
-                return value;
-              }
-
-              int int32() {
-                _require(4);
-                final value = _data.getInt32(_offset, Endian.little);
-                _offset += 4;
-                return value;
-              }
-
-              double float32() {
-                _require(4);
-                final value = _data.getFloat32(_offset, Endian.little);
-                _offset += 4;
-                return value;
-              }
-
-              double float64() {
-                _require(8);
-                final value = _data.getFloat64(_offset, Endian.little);
-                _offset += 8;
-                return value;
-              }
-
-              Uint8List bytes(int length) {
-                _require(length);
-                final value = Uint8List.sublistView(_bytes, _offset, _offset + length);
-                _offset += length;
-                return value;
-              }
-
-              void finish() {
-                if (_offset != _bytes.length) {
-                  throw ProtocolFormatException('trailing ${_bytes.length - _offset} byte(s)');
-                }
-              }
-            }
-
-            """
-        )
 
     def _message(self, message: Message) -> str:
         class_name = self._class_name(message.name)
@@ -235,22 +286,22 @@ class _DartRenderer:
             f"{declarations}\n\n"
             f"  /// Decodes a complete {class_name} value from [bytes].\n"
             f"  factory {class_name}.fromBytes(Uint8List bytes) {{\n"
-            f"    final reader = _Reader(bytes);\n"
+            f"    final reader = ProtocolReader(bytes);\n"
             f"    final value = {class_name}._read(reader);\n"
             f"    reader.finish();\n"
             f"    return value;\n"
             f"  }}\n\n"
-            f"  static {class_name} _read(_Reader reader) {{\n"
+            f"  static {class_name} _read(ProtocolReader reader) {{\n"
             f"{read_lines}\n"
             f"    return {class_name}({self._ctor_args(message)});\n"
             f"  }}\n\n"
             f"  /// Encodes this value to the protocol binary representation.\n"
             f"  Uint8List toBytes() {{\n"
-            f"    final writer = _Writer();\n"
+            f"    final writer = ProtocolWriter();\n"
             f"    _write(writer);\n"
             f"    return writer.takeBytes();\n"
             f"  }}\n\n"
-            f"  void _write(_Writer writer) {{\n"
+            f"  void _write(ProtocolWriter writer) {{\n"
             f"{write_lines}\n"
             f"  }}\n"
             f"}}\n\n"

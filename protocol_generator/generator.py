@@ -28,11 +28,21 @@ class ProtocolGenerator:
         """Generate selected language targets for all discovered schemas."""
 
         selected_languages = tuple(languages) if languages is not None else self.emitter_registry.languages()
+        emitters = tuple(self.emitter_registry.create(language) for language in selected_languages)
+        schemas = tuple(
+            (schema_path, self.schema_repository.load(schema_path))
+            for schema_path in self.schema_repository.schema_paths()
+        )
         written: list[pathlib.Path] = []
-        for schema_path in self.schema_repository.schema_paths():
-            protocol = self.schema_repository.load(schema_path)
-            for language in selected_languages:
-                emitter = self.emitter_registry.create(language)
-                for generated_file in emitter.emit_files(protocol, schema_path):
+        for emitter in emitters:
+            for generated_file in emitter.emit_runtime_files():
+                written.append(generated_file.write_to(output_dir))
+        for schema_path, protocol in schemas:
+            for emitter in emitters:
+                for generated_file in emitter.emit_protocol_files(protocol, schema_path):
                     written.append(generated_file.write_to(output_dir))
+        protocols = tuple(protocol for _, protocol in schemas)
+        for emitter in emitters:
+            for generated_file in emitter.emit_collection_files(protocols):
+                written.append(generated_file.write_to(output_dir))
         return written

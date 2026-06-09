@@ -24,7 +24,16 @@ from protocol_generator.errors import SchemaError
 class FakeEmitter(LanguageEmitter):
     """Small test emitter used to verify the strategy registry."""
 
-    def emit_files(self, protocol: Protocol, schema_path: pathlib.Path) -> tuple[GeneratedFile, ...]:
+    def emit_runtime_files(self) -> tuple[GeneratedFile, ...]:
+        """Emit one runtime marker file."""
+
+        return (GeneratedFile(pathlib.Path("fake/runtime.txt"), "runtime"),)
+
+    def emit_protocol_files(
+        self,
+        protocol: Protocol,
+        schema_path: pathlib.Path,
+    ) -> tuple[GeneratedFile, ...]:
         """Emit a marker file containing the protocol name."""
 
         return (GeneratedFile(pathlib.Path("fake") / f"{protocol.name}.txt", protocol.name),)
@@ -51,17 +60,43 @@ class GenerateProtocolsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = pathlib.Path(temp_dir)
             written = generate(pathlib.Path("schemas"), output_dir)
+            schema_count = len(tuple(pathlib.Path("schemas").glob("*/protocol.yml")))
 
-            self.assertEqual(len(written), 3)
-            self.assertTrue((output_dir / "dart/audio_response_protocol.dart").is_file())
+            self.assertEqual(len(written), 6 + schema_count * 3)
+            self.assertTrue((output_dir / "dart/lib/open_earable_protocols.dart").is_file())
+            self.assertTrue((output_dir / "dart/lib/src/protocol_runtime.dart").is_file())
+            self.assertTrue((output_dir / "c/protocol_runtime.h").is_file())
+            self.assertTrue((output_dir / "c/protocol_runtime.c").is_file())
+            self.assertTrue((output_dir / "c/protocol_sources.cmake").is_file())
+            self.assertTrue((output_dir / "c/protocol_sources.mk").is_file())
+            self.assertTrue((output_dir / "dart/lib/src/audio_response_protocol.dart").is_file())
             self.assertTrue((output_dir / "c/audio_response_protocol.h").is_file())
             self.assertTrue((output_dir / "c/audio_response_protocol.c").is_file())
 
-            dart_output = (output_dir / "dart/audio_response_protocol.dart").read_text()
+            dart_library = (output_dir / "dart/lib/open_earable_protocols.dart").read_text()
+            dart_output = (output_dir / "dart/lib/src/audio_response_protocol.dart").read_text()
             c_header = (output_dir / "c/audio_response_protocol.h").read_text()
+            c_source = (output_dir / "c/audio_response_protocol.c").read_text()
+            dart_runtime = (output_dir / "dart/lib/src/protocol_runtime.dart").read_text()
+            c_runtime = (output_dir / "c/protocol_runtime.c").read_text()
+            c_cmake_sources = (output_dir / "c/protocol_sources.cmake").read_text()
+            c_make_sources = (output_dir / "c/protocol_sources.mk").read_text()
 
+            self.assertIn(
+                "export 'src/protocol_runtime.dart' show ProtocolFormatException;",
+                dart_library,
+            )
+            self.assertIn("export 'src/audio_response_protocol.dart';", dart_library)
             self.assertIn("class AudioResponseSound", dart_output)
+            self.assertIn("import 'protocol_runtime.dart';", dart_output)
+            self.assertNotIn("class ProtocolWriter", dart_output)
+            self.assertIn("class ProtocolWriter", dart_runtime)
             self.assertIn("audio_response_sound_encode", c_header)
+            self.assertIn('#include "protocol_runtime.h"', c_header)
+            self.assertNotIn("protocol_status_t protocol_write_uint16(", c_source)
+            self.assertIn("protocol_status_t protocol_write_uint16(", c_runtime)
+            self.assertIn("audio_response_protocol.c", c_cmake_sources)
+            self.assertIn("audio_response_protocol.c", c_make_sources)
 
     def test_can_select_language_strategy(self) -> None:
         """The generator should only run selected language strategies."""
@@ -77,7 +112,12 @@ class GenerateProtocolsTest(unittest.TestCase):
 
             written = generator.generate(output_dir, languages=["fake"])
 
-            self.assertEqual(written, [output_dir / "fake/audio-response.txt"])
+            expected_protocol_paths = [
+                output_dir / "fake" / f"{schema_path.parent.name}.txt"
+                for schema_path in sorted(pathlib.Path("schemas").glob("*/protocol.yml"))
+            ]
+            self.assertEqual(written, [output_dir / "fake/runtime.txt", *expected_protocol_paths])
+            self.assertEqual((output_dir / "fake/runtime.txt").read_text(), "runtime")
             self.assertEqual((output_dir / "fake/audio-response.txt").read_text(), "audio-response")
 
     def test_generates_float_and_double_fields_and_arrays(self) -> None:
@@ -106,7 +146,7 @@ messages:
 
             generate(root / "schemas", root / "generated")
 
-            dart_output = (root / "generated/dart/measurements_protocol.dart").read_text()
+            dart_output = (root / "generated/dart/lib/src/measurements_protocol.dart").read_text()
             c_header = (root / "generated/c/measurements_protocol.h").read_text()
             c_source = (root / "generated/c/measurements_protocol.c").read_text()
 
@@ -116,8 +156,8 @@ messages:
             self.assertIn("reader.float64()", dart_output)
             self.assertIn("float value;", c_header)
             self.assertIn("double precise_value;", c_header)
-            self.assertIn("measurements_write_float", c_source)
-            self.assertIn("measurements_write_double", c_source)
+            self.assertIn("protocol_write_float", c_source)
+            self.assertIn("protocol_write_double", c_source)
 
     def test_rejects_float_as_array_length(self) -> None:
         """Floating-point fields cannot control variable-length data."""
