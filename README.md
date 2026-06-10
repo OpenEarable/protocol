@@ -17,12 +17,11 @@ written to:
 - `generated/dart/lib/open_earable_protocols.dart`
 - `generated/dart/lib/src/protocol_runtime.dart`
 - `generated/dart/lib/src/*_protocol.dart`
-- `generated/c/protocol_runtime.h`
-- `generated/c/protocol_runtime.c`
-- `generated/c/*_protocol.h`
-- `generated/c/*_protocol.c`
-- `generated/c/protocol_sources.cmake`
-- `generated/c/protocol_sources.mk`
+- `generated/c/include/protocol_runtime.h`
+- `generated/c/include/*_protocol.h`
+- `generated/c/src/protocol_runtime.c`
+- `generated/c/src/*_protocol.c`
+- `generated/c/CMakeLists.txt`
 
 Custom directories can be provided when integrating with a build system:
 
@@ -114,14 +113,11 @@ shared `protocol_status_t` type.
 
 ## C Package
 
-The generated C99 bindings under `generated/c` can be consumed by CMake, Make,
-or Zephyr. CMake projects can add the directory and link
-`OpenEarable::Protocols`. Make projects can either build the provided static
-library or include `protocol_sources.mk` to compile the generated sources
-directly.
+The generated C99 bindings under `generated/c` are a CMake library. CMake
+projects can add the directory and link `OpenEarable::Protocols`. The generated
+target compiles every protocol source and exposes `generated/c/include` to
+consumers.
 
-The repository is also a Zephyr module. Add it to a west manifest and Zephyr
-will compile the generated protocol sources and expose their headers
-automatically. See [`generated/c/README.md`](generated/c/README.md) for usage
-examples and [`docs/open-earable-2-integration.md`](docs/open-earable-2-integration.md)
-for firmware integration.
+See [`generated/c/README.md`](generated/c/README.md) for general usage and
+[`docs/open-earable-2-integration.md`](docs/open-earable-2-integration.md) for
+explicit firmware integration.

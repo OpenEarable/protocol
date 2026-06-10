@@ -49,12 +49,12 @@ The Dart emitter generates private runtime and protocol implementations below
 `open_earable_protocols.dart` package library, which exports every protocol
 implementation.
 
-The C emitter generates `protocol_runtime.h` and `protocol_runtime.c`,
-containing `protocol_status_t`, reader/writer state, and primitive codecs. Every
-protocol header includes the runtime header, and applications compile the
-runtime source once. Its collection output generates CMake and Make source
-manifests so every build system receives the complete source set without
-duplicating the runtime.
+The C emitter generates public headers under `generated/c/include` and sources
+under `generated/c/src`. The shared runtime contains `protocol_status_t`,
+reader/writer state, and primitive codecs. Every protocol header includes the
+runtime header. Its collection output generates `generated/c/CMakeLists.txt`,
+which compiles the runtime once together with every protocol source and exposes
+the public include directory through `OpenEarable::Protocols`.
 
 ## Scalar Encoding
 

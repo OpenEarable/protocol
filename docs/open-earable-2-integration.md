@@ -1,12 +1,13 @@
 # OpenEarable 2 Firmware Integration
 
-The `open-earable-2` firmware is a Zephyr application managed by west. This
-protocol repository contains `zephyr/module.yml`, so Zephyr can discover and
-compile the generated C bindings automatically.
+The generated C bindings are provided as a CMake library. A firmware project
+must add `generated/c` explicitly and link `OpenEarable::Protocols` to the
+target that uses the protocol bindings.
 
 ## Pinned west dependency
 
-Add the protocol repository to the `projects` list in `open-earable-2/west.yml`:
+The protocol repository can be pinned in the `projects` list in
+`open-earable-2/west.yml`:
 
 ```yaml
 manifest:
@@ -31,9 +32,19 @@ workspace:
 west update
 ```
 
-No changes to the firmware's root `CMakeLists.txt` are required. Zephyr loads
-the module, compiles all generated protocol sources, and adds the generated C
-directory to the include path.
+West fetches the repository but does not add it to the build automatically.
+After defining the firmware target, add the generated C library and link it:
+
+```cmake
+add_subdirectory(
+  "${CMAKE_CURRENT_SOURCE_DIR}/../modules/lib/open-earable-protocols/generated/c"
+  "${CMAKE_CURRENT_BINARY_DIR}/open-earable-protocols"
+)
+target_link_libraries(app PRIVATE OpenEarable::Protocols)
+```
+
+Adjust the repository path to match the firmware workspace. Linking the target
+also exposes the generated public headers.
 
 Firmware source files can include and use a generated protocol directly:
 
@@ -57,15 +68,10 @@ protocol_status_t status = audio_response_tone_encode(
 
 ## Local protocol development
 
-Before the protocol repository is added to the west manifest, pass it as an
-extra Zephyr module when configuring the firmware:
-
-```sh
-west build open-earable-2 \
-  --build-dir open-earable-2/build \
-  -- \
-  -DZEPHYR_EXTRA_MODULES=/absolute/path/to/protocol
-```
+For local development, point the same `add_subdirectory` call at the local
+protocol checkout instead of the west-managed checkout. The protocol
+repository is not a Zephyr module and must not be passed through
+`ZEPHYR_EXTRA_MODULES`.
 
 Regenerate bindings in the protocol repository before rebuilding:
 

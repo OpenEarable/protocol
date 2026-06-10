@@ -62,25 +62,26 @@ class GenerateProtocolsTest(unittest.TestCase):
             written = generate(pathlib.Path("schemas"), output_dir)
             schema_count = len(tuple(pathlib.Path("schemas").glob("*/protocol.yml")))
 
-            self.assertEqual(len(written), 6 + schema_count * 3)
+            self.assertEqual(len(written), 5 + schema_count * 3)
             self.assertTrue((output_dir / "dart/lib/open_earable_protocols.dart").is_file())
             self.assertTrue((output_dir / "dart/lib/src/protocol_runtime.dart").is_file())
-            self.assertTrue((output_dir / "c/protocol_runtime.h").is_file())
-            self.assertTrue((output_dir / "c/protocol_runtime.c").is_file())
-            self.assertTrue((output_dir / "c/protocol_sources.cmake").is_file())
-            self.assertTrue((output_dir / "c/protocol_sources.mk").is_file())
+            self.assertTrue((output_dir / "c/include/protocol_runtime.h").is_file())
+            self.assertTrue((output_dir / "c/src/protocol_runtime.c").is_file())
+            self.assertTrue((output_dir / "c/CMakeLists.txt").is_file())
+            self.assertFalse((output_dir / "c/Makefile").exists())
+            self.assertFalse((output_dir / "c/protocol_sources.cmake").exists())
+            self.assertFalse((output_dir / "c/protocol_sources.mk").exists())
             self.assertTrue((output_dir / "dart/lib/src/audio_response_protocol.dart").is_file())
-            self.assertTrue((output_dir / "c/audio_response_protocol.h").is_file())
-            self.assertTrue((output_dir / "c/audio_response_protocol.c").is_file())
+            self.assertTrue((output_dir / "c/include/audio_response_protocol.h").is_file())
+            self.assertTrue((output_dir / "c/src/audio_response_protocol.c").is_file())
 
             dart_library = (output_dir / "dart/lib/open_earable_protocols.dart").read_text()
             dart_output = (output_dir / "dart/lib/src/audio_response_protocol.dart").read_text()
-            c_header = (output_dir / "c/audio_response_protocol.h").read_text()
-            c_source = (output_dir / "c/audio_response_protocol.c").read_text()
+            c_header = (output_dir / "c/include/audio_response_protocol.h").read_text()
+            c_source = (output_dir / "c/src/audio_response_protocol.c").read_text()
             dart_runtime = (output_dir / "dart/lib/src/protocol_runtime.dart").read_text()
-            c_runtime = (output_dir / "c/protocol_runtime.c").read_text()
-            c_cmake_sources = (output_dir / "c/protocol_sources.cmake").read_text()
-            c_make_sources = (output_dir / "c/protocol_sources.mk").read_text()
+            c_runtime = (output_dir / "c/src/protocol_runtime.c").read_text()
+            c_cmake = (output_dir / "c/CMakeLists.txt").read_text()
 
             self.assertIn(
                 "export 'src/protocol_runtime.dart' show ProtocolFormatException;",
@@ -95,8 +96,9 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn('#include "protocol_runtime.h"', c_header)
             self.assertNotIn("protocol_status_t protocol_write_uint16(", c_source)
             self.assertIn("protocol_status_t protocol_write_uint16(", c_runtime)
-            self.assertIn("audio_response_protocol.c", c_cmake_sources)
-            self.assertIn("audio_response_protocol.c", c_make_sources)
+            self.assertIn('"src/audio_response_protocol.c"', c_cmake)
+            self.assertIn("add_library(OpenEarable::Protocols ALIAS", c_cmake)
+            self.assertIn("target_compile_features(open_earable_protocols PUBLIC c_std_99)", c_cmake)
 
     def test_can_select_language_strategy(self) -> None:
         """The generator should only run selected language strategies."""
@@ -147,8 +149,8 @@ messages:
             generate(root / "schemas", root / "generated")
 
             dart_output = (root / "generated/dart/lib/src/measurements_protocol.dart").read_text()
-            c_header = (root / "generated/c/measurements_protocol.h").read_text()
-            c_source = (root / "generated/c/measurements_protocol.c").read_text()
+            c_header = (root / "generated/c/include/measurements_protocol.h").read_text()
+            c_source = (root / "generated/c/src/measurements_protocol.c").read_text()
 
             self.assertIn("final double value;", dart_output)
             self.assertIn("final List<double> values;", dart_output)
