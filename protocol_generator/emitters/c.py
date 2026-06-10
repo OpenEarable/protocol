@@ -57,54 +57,32 @@ class CEmitter(LanguageEmitter):
         self,
         protocols: Sequence[Protocol],
     ) -> tuple[GeneratedFile, ...]:
-        """Emit build-system source manifests for all generated C protocols."""
+        """Emit the CMake project for all generated C protocols."""
 
         source_names = [
             "protocol_runtime.c",
             *(f"{snake_case(protocol.name)}_protocol.c" for protocol in protocols),
         ]
-        header_names = [
-            "protocol_runtime.h",
-            *(f"{snake_case(protocol.name)}_protocol.h" for protocol in protocols),
-        ]
         cmake_sources = "\n".join(
-            f'  "${{CMAKE_CURRENT_LIST_DIR}}/{source_name}"'
+            f'    "src/{source_name}"'
             for source_name in source_names
-        )
-        cmake_headers = "\n".join(
-            f'  "${{CMAKE_CURRENT_LIST_DIR}}/{header_name}"'
-            for header_name in header_names
-        )
-        make_sources = " \\\n".join(
-            f"  $(OPEN_EARABLE_PROTOCOLS_DIR)/{source_name}"
-            for source_name in source_names
-        )
-        make_headers = " \\\n".join(
-            f"  $(OPEN_EARABLE_PROTOCOLS_DIR)/{header_name}"
-            for header_name in header_names
         )
         return (
             GeneratedFile(
-                pathlib.Path("c/protocol_sources.cmake"),
+                pathlib.Path("c/CMakeLists.txt"),
                 (
-                    "# Generated protocol source manifest. Do not edit by hand.\n"
-                    "set(OPEN_EARABLE_PROTOCOLS_SOURCES\n"
+                    "# Generated CMake project. Do not edit by hand.\n"
+                    "cmake_minimum_required(VERSION 3.10)\n\n"
+                    "project(open_earable_protocols LANGUAGES C)\n\n"
+                    "add_library(open_earable_protocols STATIC\n"
                     f"{cmake_sources}\n"
-                    ")\n\n"
-                    "set(OPEN_EARABLE_PROTOCOLS_HEADERS\n"
-                    f"{cmake_headers}\n"
                     ")\n"
-                ),
-            ),
-            GeneratedFile(
-                pathlib.Path("c/protocol_sources.mk"),
-                (
-                    "# Generated protocol source manifest. Do not edit by hand.\n"
-                    "OPEN_EARABLE_PROTOCOLS_DIR ?= $(dir $(lastword $(MAKEFILE_LIST)))\n\n"
-                    "OPEN_EARABLE_PROTOCOLS_SOURCES := \\\n"
-                    f"{make_sources}\n\n"
-                    "OPEN_EARABLE_PROTOCOLS_HEADERS := \\\n"
-                    f"{make_headers}\n"
+                    "add_library(OpenEarable::Protocols ALIAS open_earable_protocols)\n\n"
+                    "target_compile_features(open_earable_protocols PUBLIC c_std_99)\n"
+                    "target_include_directories(open_earable_protocols\n"
+                    "    PUBLIC\n"
+                    '        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"\n'
+                    ")\n"
                 ),
             ),
         )
@@ -117,8 +95,8 @@ class _CRuntimeRenderer:
         """Render the shared runtime header and source."""
 
         return (
-            GeneratedFile(pathlib.Path("c/protocol_runtime.h"), self._header()),
-            GeneratedFile(pathlib.Path("c/protocol_runtime.c"), self._source()),
+            GeneratedFile(pathlib.Path("c/include/protocol_runtime.h"), self._header()),
+            GeneratedFile(pathlib.Path("c/src/protocol_runtime.c"), self._source()),
         )
 
     def _header(self) -> str:
@@ -224,9 +202,9 @@ class _CRenderer:
         protocol_slug = snake_case(self.protocol.name)
         header_name = f"{protocol_slug}_protocol.h"
         return (
-            GeneratedFile(pathlib.Path("c") / header_name, self.emit_header()),
+            GeneratedFile(pathlib.Path("c/include") / header_name, self.emit_header()),
             GeneratedFile(
-                pathlib.Path("c") / f"{protocol_slug}_protocol.c",
+                pathlib.Path("c/src") / f"{protocol_slug}_protocol.c",
                 self.emit_source(header_name),
             ),
         )
