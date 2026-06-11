@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 INTEGER_SCALAR_TYPE_NAMES = frozenset(
@@ -17,6 +18,19 @@ INTEGER_SCALAR_TYPE_NAMES = frozenset(
 )
 FLOATING_POINT_SCALAR_TYPE_NAMES = frozenset({"float", "double"})
 SCALAR_TYPE_NAMES = INTEGER_SCALAR_TYPE_NAMES | FLOATING_POINT_SCALAR_TYPE_NAMES
+
+
+class BleCharacteristicProperty(StrEnum):
+    """Standard Bluetooth GATT characteristic property."""
+
+    BROADCAST = "broadcast"
+    READ = "read"
+    WRITE_WITHOUT_RESPONSE = "write_without_response"
+    WRITE = "write"
+    NOTIFY = "notify"
+    INDICATE = "indicate"
+    AUTHENTICATED_SIGNED_WRITES = "authenticated_signed_writes"
+    EXTENDED_PROPERTIES = "extended_properties"
 
 
 @dataclass(frozen=True)
@@ -35,7 +49,7 @@ class BytesType:
 
 @dataclass(frozen=True)
 class ArrayType:
-    """A fixed-width integer array whose length is controlled by another field."""
+    """A fixed-width scalar array whose length is controlled by another field."""
 
     item_type: ScalarType
     length_field: str
@@ -71,7 +85,25 @@ class Message:
     """A protocol message with ordered fields."""
 
     name: str
+    description: str
     fields: tuple[Field, ...]
+
+
+@dataclass(frozen=True)
+class BleCharacteristic:
+    """A BLE characteristic exposed by a protocol service."""
+
+    name: str
+    uuid: str
+    properties: tuple[BleCharacteristicProperty, ...]
+
+
+@dataclass(frozen=True)
+class BleTransport:
+    """BLE service metadata associated with a protocol."""
+
+    service_uuid: str
+    characteristics: tuple[BleCharacteristic, ...]
 
 
 @dataclass(frozen=True)
@@ -82,3 +114,4 @@ class Protocol:
     version: int
     description: str
     messages: tuple[Message, ...]
+    ble: BleTransport | None = None

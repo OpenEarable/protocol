@@ -5,11 +5,12 @@ from __future__ import annotations
 import pathlib
 import re
 import textwrap
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from protocol_generator.emitters.base import LanguageEmitter
 from protocol_generator.model import (
     ArrayType,
+    BleCharacteristicProperty,
     BytesType,
     Field,
     FieldType,
@@ -19,9 +20,9 @@ from protocol_generator.model import (
     ScalarType,
     UnionType,
 )
-from protocol_generator.naming import generated_banner, snake_case
+from protocol_generator.naming import generated_banner, pascal_case, snake_case
 from protocol_generator.output import GeneratedFile
-from protocol_generator.text import _indent
+from protocol_generator.text import _indent, c_doc_comment
 
 
 C_SCALAR_TYPES = {
@@ -33,6 +34,30 @@ C_SCALAR_TYPES = {
     "int32": "int32_t",
     "float": "float",
     "double": "double",
+}
+
+C_BLE_PROPERTIES = {
+    BleCharacteristicProperty.BROADCAST: "PROTOCOL_BLE_PROPERTY_BROADCAST",
+    BleCharacteristicProperty.READ: "PROTOCOL_BLE_PROPERTY_READ",
+    BleCharacteristicProperty.WRITE_WITHOUT_RESPONSE: "PROTOCOL_BLE_PROPERTY_WRITE_WITHOUT_RESPONSE",
+    BleCharacteristicProperty.WRITE: "PROTOCOL_BLE_PROPERTY_WRITE",
+    BleCharacteristicProperty.NOTIFY: "PROTOCOL_BLE_PROPERTY_NOTIFY",
+    BleCharacteristicProperty.INDICATE: "PROTOCOL_BLE_PROPERTY_INDICATE",
+    BleCharacteristicProperty.AUTHENTICATED_SIGNED_WRITES: (
+        "PROTOCOL_BLE_PROPERTY_AUTHENTICATED_SIGNED_WRITES"
+    ),
+    BleCharacteristicProperty.EXTENDED_PROPERTIES: "PROTOCOL_BLE_PROPERTY_EXTENDED_PROPERTIES",
+}
+
+ZEPHYR_BLE_PROPERTIES = {
+    BleCharacteristicProperty.BROADCAST: "BT_GATT_CHRC_BROADCAST",
+    BleCharacteristicProperty.READ: "BT_GATT_CHRC_READ",
+    BleCharacteristicProperty.WRITE_WITHOUT_RESPONSE: "BT_GATT_CHRC_WRITE_WITHOUT_RESP",
+    BleCharacteristicProperty.WRITE: "BT_GATT_CHRC_WRITE",
+    BleCharacteristicProperty.NOTIFY: "BT_GATT_CHRC_NOTIFY",
+    BleCharacteristicProperty.INDICATE: "BT_GATT_CHRC_INDICATE",
+    BleCharacteristicProperty.AUTHENTICATED_SIGNED_WRITES: "BT_GATT_CHRC_AUTH",
+    BleCharacteristicProperty.EXTENDED_PROPERTIES: "BT_GATT_CHRC_EXT_PROP",
 }
 
 
@@ -120,6 +145,15 @@ class _CRuntimeRenderer:
             #include <stddef.h>
             #include <stdint.h>
 
+            #define PROTOCOL_BLE_PROPERTY_BROADCAST 0x01u
+            #define PROTOCOL_BLE_PROPERTY_READ 0x02u
+            #define PROTOCOL_BLE_PROPERTY_WRITE_WITHOUT_RESPONSE 0x04u
+            #define PROTOCOL_BLE_PROPERTY_WRITE 0x08u
+            #define PROTOCOL_BLE_PROPERTY_NOTIFY 0x10u
+            #define PROTOCOL_BLE_PROPERTY_INDICATE 0x20u
+            #define PROTOCOL_BLE_PROPERTY_AUTHENTICATED_SIGNED_WRITES 0x40u
+            #define PROTOCOL_BLE_PROPERTY_EXTENDED_PROPERTIES 0x80u
+
             #ifdef __cplusplus
             extern "C" {{
             #endif
@@ -201,13 +235,21 @@ class _CRenderer:
 
         protocol_slug = snake_case(self.protocol.name)
         header_name = f"{protocol_slug}_protocol.h"
-        return (
+        files = [
             GeneratedFile(pathlib.Path("c/include") / header_name, self.emit_header()),
             GeneratedFile(
                 pathlib.Path("c/src") / f"{protocol_slug}_protocol.c",
                 self.emit_source(header_name),
             ),
-        )
+        ]
+        if self.protocol.ble is not None:
+            files.append(
+                GeneratedFile(
+                    pathlib.Path("c/include/zephyr") / f"{protocol_slug}_ble.h",
+                    self._emit_zephyr_header(header_name),
+                )
+            )
+        return tuple(files)
 
     def emit_header(self) -> str:
         guard = f"{self.prefix.upper()}_PROTOCOL_H"
@@ -215,15 +257,32 @@ class _CRenderer:
             generated_banner(self.schema_path),
             f"#ifndef {guard}\n#define {guard}\n\n",
             '#include "protocol_runtime.h"\n\n',
-            "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n",
         ]
+        if self.protocol.ble is not None:
+            parts.append(self._ble_uuid_macros())
+        parts.append("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n")
         for message in self.protocol.messages:
             parts.append(self._header_struct(message))
         for message in self.protocol.messages:
             c_name = self._c_message_name(message.name)
+            description = self._message_description(message)
+            parts.append(
+                c_doc_comment(
+                    f"Encode a binary representation of this message. {description}",
+                    f"Encode a {message.name} message.",
+                )
+                + "\n"
+            )
             parts.append(
                 f"protocol_status_t {c_name}_encode(const {c_name}_t *message, "
                 "uint8_t *buffer, size_t buffer_size, size_t *bytes_written);\n"
+            )
+            parts.append(
+                c_doc_comment(
+                    f"Decode a binary representation into this message. {description}",
+                    f"Decode a {message.name} message.",
+                )
+                + "\n"
             )
             parts.append(
                 f"protocol_status_t {c_name}_decode({c_name}_t *message, "
@@ -232,6 +291,63 @@ class _CRenderer:
         parts.append("#ifdef __cplusplus\n}\n#endif\n\n")
         parts.append(f"#endif /* {guard} */\n")
         return "".join(parts)
+
+    def _ble_uuid_macros(self) -> str:
+        """Render BLE service and characteristic UUID macros."""
+
+        assert self.protocol.ble is not None
+        macro_prefix = self.prefix.upper()
+        lines = [
+            f'#define {macro_prefix}_BLE_SERVICE_UUID "{self.protocol.ble.service_uuid}"',
+        ]
+        for characteristic in self.protocol.ble.characteristics:
+            characteristic_name = snake_case(characteristic.name).upper()
+            properties = _c_property_expression(characteristic.properties, C_BLE_PROPERTIES, "0u")
+            lines.append(
+                f'#define {macro_prefix}_BLE_{characteristic_name}_CHARACTERISTIC_UUID '
+                f'"{characteristic.uuid}"'
+            )
+            lines.append(
+                f"#define {macro_prefix}_BLE_{characteristic_name}_CHARACTERISTIC_PROPERTIES "
+                f"({properties})"
+            )
+        return "\n".join(lines) + "\n\n"
+
+    def _emit_zephyr_header(self, protocol_header_name: str) -> str:
+        """Render optional Zephyr UUID, property, and permission adapters."""
+
+        assert self.protocol.ble is not None
+        macro_prefix = self.prefix.upper()
+        guard = f"{macro_prefix}_ZEPHYR_BLE_H"
+        lines = [
+            generated_banner(self.schema_path).rstrip(),
+            f"#ifndef {guard}",
+            f"#define {guard}",
+            "",
+            f'#include "{protocol_header_name}"',
+            "#include <zephyr/bluetooth/gatt.h>",
+            "#include <zephyr/bluetooth/uuid.h>",
+            "",
+            f"#define {macro_prefix}_ZEPHYR_SERVICE_UUID "
+            f"{_zephyr_uuid_expression(self.protocol.ble.service_uuid)}",
+        ]
+        for characteristic in self.protocol.ble.characteristics:
+            name = snake_case(characteristic.name).upper()
+            properties = _c_property_expression(characteristic.properties, ZEPHYR_BLE_PROPERTIES, "0")
+            permissions = _zephyr_permission_expression(characteristic.properties)
+            lines.extend(
+                [
+                    "",
+                    f"#define {macro_prefix}_ZEPHYR_{name}_CHARACTERISTIC_UUID "
+                    f"{_zephyr_uuid_expression(characteristic.uuid)}",
+                    f"#define {macro_prefix}_ZEPHYR_{name}_CHARACTERISTIC_PROPERTIES "
+                    f"({properties})",
+                    f"#define {macro_prefix}_ZEPHYR_{name}_CHARACTERISTIC_PERMISSIONS "
+                    f"({permissions})",
+                ]
+            )
+        lines.extend(["", f"#endif /* {guard} */", ""])
+        return "\n".join(lines)
 
     def emit_source(self, header_name: str) -> str:
         parts = [
@@ -244,12 +360,23 @@ class _CRenderer:
 
     def _header_struct(self, message: Message) -> str:
         c_name = self._c_message_name(message.name)
-        lines = [f"typedef struct {c_name}_t {c_name}_t;\n"]
+        documentation = c_doc_comment(
+            message.description,
+            self._message_description(message),
+        )
+        lines = [f"{documentation}\n", f"typedef struct {c_name}_t {c_name}_t;\n"]
         body = [f"struct {c_name}_t {{"]
         for field in message.fields:
             body.extend(self._field_declaration(field))
         body.append("};\n\n")
         return "".join(lines + [line + "\n" for line in body])
+
+    def _message_description(self, message: Message) -> str:
+        """Return schema documentation or a stable generated fallback."""
+
+        return message.description or (
+            f"{pascal_case(message.name)} message for the {self.protocol.name} protocol."
+        )
 
     def _field_declaration(self, field: Field) -> list[str]:
         field_type = field.type
@@ -612,3 +739,46 @@ class _CRenderer:
 
     def _c_message_name(self, message_name: str) -> str:
         return f"{self.prefix}_{snake_case(message_name)}"
+
+
+def _c_property_expression(
+    properties: Sequence[BleCharacteristicProperty],
+    mapping: Mapping[BleCharacteristicProperty, str],
+    empty_value: str,
+) -> str:
+    """Render a C bitwise-or expression for BLE characteristic properties."""
+
+    return " | ".join(mapping[property_value] for property_value in properties) or empty_value
+
+
+def _zephyr_permission_expression(properties: Sequence[BleCharacteristicProperty]) -> str:
+    """Derive default Zephyr attribute permissions from GATT properties."""
+
+    permissions: list[str] = []
+    if BleCharacteristicProperty.READ in properties:
+        permissions.append("BT_GATT_PERM_READ")
+    if any(
+        property_value in properties
+        for property_value in (
+            BleCharacteristicProperty.WRITE,
+            BleCharacteristicProperty.WRITE_WITHOUT_RESPONSE,
+            BleCharacteristicProperty.AUTHENTICATED_SIGNED_WRITES,
+        )
+    ):
+        permissions.append("BT_GATT_PERM_WRITE")
+    return " | ".join(permissions) or "BT_GATT_PERM_NONE"
+
+
+def _zephyr_uuid_expression(uuid_value: str) -> str:
+    """Render a Zephyr inline UUID declaration for a normalized BLE UUID."""
+
+    if len(uuid_value) == 4:
+        return f"BT_UUID_DECLARE_16(0x{uuid_value})"
+    if len(uuid_value) == 8:
+        return f"BT_UUID_DECLARE_32(0x{uuid_value})"
+
+    word32, word1, word2, word3, word48 = uuid_value.split("-")
+    return (
+        "BT_UUID_DECLARE_128(BT_UUID_128_ENCODE("
+        f"0x{word32}, 0x{word1}, 0x{word2}, 0x{word3}, 0x{word48}))"
+    )

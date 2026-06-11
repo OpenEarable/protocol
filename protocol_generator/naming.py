@@ -18,6 +18,13 @@ def snake_case(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_").lower()
 
 
+def lower_camel_case(value: str) -> str:
+    """Convert snake/kebab case names to lowerCamelCase."""
+
+    pascal = pascal_case(value)
+    return pascal[:1].lower() + pascal[1:]
+
+
 def generated_banner(schema_path: pathlib.Path) -> str:
     """Return the generated file warning banner."""
 

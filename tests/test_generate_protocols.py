@@ -18,6 +18,7 @@ from protocol_generator import (
     load_protocol,
 )
 from protocol_generator.errors import SchemaError
+from protocol_generator.model import BleCharacteristicProperty
 
 
 @dataclasses.dataclass(frozen=True)
@@ -43,15 +44,31 @@ class GenerateProtocolsTest(unittest.TestCase):
     """Validate schema loading and generated output for the bundled schemas."""
 
     def test_loads_audio_response_schema(self) -> None:
-        """The audio response schema should load into four ordered messages."""
+        """The audio response schema should retain ordered messages and descriptions."""
 
         protocol = load_protocol(pathlib.Path("schemas/audio-response/protocol.yml"))
 
         self.assertEqual(protocol.name, "audio-response")
         self.assertEqual(protocol.version, 1)
+        self.assertIsNotNone(protocol.ble)
+        assert protocol.ble is not None
+        self.assertEqual(protocol.ble.service_uuid, "7467b395-9043-4453-bc5c-2d8e8b10680a")
+        self.assertEqual(protocol.ble.characteristics[0].name, "audio_response_config")
+        self.assertEqual(
+            protocol.ble.characteristics[0].properties,
+            (BleCharacteristicProperty.WRITE,),
+        )
+        self.assertEqual(
+            protocol.ble.characteristics[0].uuid,
+            "7467b396-9043-4453-bc5c-2d8e8b10680a",
+        )
         self.assertEqual(
             [message.name for message in protocol.messages],
-            ["buffer", "tone", "audio_response", "sound"],
+            ["buffer", "tone", "data", "sound", "config"],
+        )
+        self.assertEqual(
+            protocol.messages[0].description,
+            "A message containing audio data in a buffer format.",
         )
 
     def test_generates_dart_and_c_outputs(self) -> None:
@@ -61,8 +78,12 @@ class GenerateProtocolsTest(unittest.TestCase):
             output_dir = pathlib.Path(temp_dir)
             written = generate(pathlib.Path("schemas"), output_dir)
             schema_count = len(tuple(pathlib.Path("schemas").glob("*/protocol.yml")))
+            ble_schema_count = sum(
+                load_protocol(schema_path).ble is not None
+                for schema_path in pathlib.Path("schemas").glob("*/protocol.yml")
+            )
 
-            self.assertEqual(len(written), 5 + schema_count * 3)
+            self.assertEqual(len(written), 5 + schema_count * 3 + ble_schema_count)
             self.assertTrue((output_dir / "dart/lib/open_earable_protocols.dart").is_file())
             self.assertTrue((output_dir / "dart/lib/src/protocol_runtime.dart").is_file())
             self.assertTrue((output_dir / "c/include/protocol_runtime.h").is_file())
@@ -74,6 +95,7 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertTrue((output_dir / "dart/lib/src/audio_response_protocol.dart").is_file())
             self.assertTrue((output_dir / "c/include/audio_response_protocol.h").is_file())
             self.assertTrue((output_dir / "c/src/audio_response_protocol.c").is_file())
+            self.assertTrue((output_dir / "c/include/zephyr/audio_response_ble.h").is_file())
 
             dart_library = (output_dir / "dart/lib/open_earable_protocols.dart").read_text()
             dart_output = (output_dir / "dart/lib/src/audio_response_protocol.dart").read_text()
@@ -82,18 +104,72 @@ class GenerateProtocolsTest(unittest.TestCase):
             dart_runtime = (output_dir / "dart/lib/src/protocol_runtime.dart").read_text()
             c_runtime = (output_dir / "c/src/protocol_runtime.c").read_text()
             c_cmake = (output_dir / "c/CMakeLists.txt").read_text()
+            zephyr_header = (output_dir / "c/include/zephyr/audio_response_ble.h").read_text()
 
-            self.assertIn(
-                "export 'src/protocol_runtime.dart' show ProtocolFormatException;",
-                dart_library,
-            )
+            self.assertIn("export 'src/protocol_runtime.dart'", dart_library)
+            self.assertIn("ProtocolBleCharacteristicDefinition", dart_library)
+            self.assertIn("ProtocolBleCharacteristicProperty", dart_library)
             self.assertIn("export 'src/audio_response_protocol.dart';", dart_library)
             self.assertIn("class AudioResponseSound", dart_output)
+            self.assertIn(
+                "/// A message containing audio data in a buffer format.",
+                dart_output,
+            )
+            self.assertIn("abstract final class AudioResponseBleUuids", dart_output)
+            self.assertIn(
+                "static const String serviceUuid = '7467b395-9043-4453-bc5c-2d8e8b10680a';",
+                dart_output,
+            )
+            self.assertIn(
+                "static const String audioResponseConfigCharacteristicUuid = "
+                "'7467b396-9043-4453-bc5c-2d8e8b10680a';",
+                dart_output,
+            )
+            self.assertIn("ProtocolBleCharacteristicProperty.write", dart_output)
+            self.assertIn("ProtocolBleCharacteristicProperty.notify", dart_output)
+            self.assertIn("static const ProtocolBleServiceDefinition service", dart_output)
+            self.assertIn("mapPropertiesByName", dart_runtime)
+            self.assertIn("bool get isReadable", dart_runtime)
+            self.assertIn("bool get isWritable", dart_runtime)
             self.assertIn("import 'protocol_runtime.dart';", dart_output)
             self.assertNotIn("class ProtocolWriter", dart_output)
             self.assertIn("class ProtocolWriter", dart_runtime)
             self.assertIn("audio_response_sound_encode", c_header)
             self.assertIn('#include "protocol_runtime.h"', c_header)
+            self.assertIn(
+                "/** A message containing audio data in a buffer format. */",
+                c_header,
+            )
+            self.assertIn("Encode a binary representation of this message.", c_header)
+            self.assertIn(
+                '#define AUDIO_RESPONSE_BLE_SERVICE_UUID "7467b395-9043-4453-bc5c-2d8e8b10680a"',
+                c_header,
+            )
+            self.assertIn(
+                "#define AUDIO_RESPONSE_BLE_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_UUID "
+                '"7467b396-9043-4453-bc5c-2d8e8b10680a"',
+                c_header,
+            )
+            self.assertIn(
+                "#define AUDIO_RESPONSE_BLE_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_PROPERTIES "
+                "(PROTOCOL_BLE_PROPERTY_WRITE)",
+                c_header,
+            )
+            self.assertIn(
+                "#define AUDIO_RESPONSE_ZEPHYR_SERVICE_UUID "
+                "BT_UUID_DECLARE_128(BT_UUID_128_ENCODE(",
+                zephyr_header,
+            )
+            self.assertIn(
+                "#define AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_PROPERTIES "
+                "(BT_GATT_CHRC_WRITE)",
+                zephyr_header,
+            )
+            self.assertIn(
+                "#define AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_PERMISSIONS "
+                "(BT_GATT_PERM_WRITE)",
+                zephyr_header,
+            )
             self.assertNotIn("protocol_status_t protocol_write_uint16(", c_source)
             self.assertIn("protocol_status_t protocol_write_uint16(", c_runtime)
             self.assertIn('"src/audio_response_protocol.c"', c_cmake)
@@ -160,6 +236,14 @@ messages:
             self.assertIn("double precise_value;", c_header)
             self.assertIn("protocol_write_float", c_source)
             self.assertIn("protocol_write_double", c_source)
+            self.assertIn(
+                "/// Sample message for the measurements protocol.",
+                dart_output,
+            )
+            self.assertIn(
+                "/** Sample message for the measurements protocol. */",
+                c_header,
+            )
 
     def test_rejects_float_as_array_length(self) -> None:
         """Floating-point fields cannot control variable-length data."""
@@ -181,6 +265,105 @@ messages:
 
             with self.assertRaisesRegex(SchemaError, "references length field 'count'"):
                 load_protocol(schema_path)
+
+    def test_rejects_unknown_ble_property(self) -> None:
+        """Unknown BLE properties should fail schema validation."""
+
+        schema = """\
+protocol: invalid
+version: 1
+transport:
+  ble:
+    service_uuid: 180d
+    characteristics:
+      - name: measurement
+        uuid: 2a37
+        properties: [read, unsupported]
+messages:
+  sample:
+    fields:
+      - name: value
+        type: uint8
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            schema_path = pathlib.Path(temp_dir) / "protocol.yml"
+            schema_path.write_text(schema)
+
+            with self.assertRaisesRegex(SchemaError, "unsupported BLE characteristic property"):
+                load_protocol(schema_path)
+
+    def test_rejects_non_string_message_description(self) -> None:
+        """Message descriptions must be strings when provided."""
+
+        schema = """\
+protocol: invalid
+version: 1
+messages:
+  sample:
+    description: 42
+    fields: []
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            schema_path = pathlib.Path(temp_dir) / "protocol.yml"
+            schema_path.write_text(schema)
+
+            with self.assertRaisesRegex(SchemaError, "description must be a string"):
+                load_protocol(schema_path)
+
+    def test_normalizes_universal_ble_property_names(self) -> None:
+        """UniversalBLE-style property names should map to standard properties."""
+
+        schema = """\
+protocol: ble-properties
+version: 1
+transport:
+  ble:
+    service_uuid: 180d
+    characteristics:
+      - name: values
+        uuid: "12345678"
+        properties: [writeWithoutResponse, authenticatedSignedWrites, extendedProperties]
+messages:
+  value:
+    fields: []
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            schema_path = root / "schemas/ble-properties/protocol.yml"
+            schema_path.parent.mkdir(parents=True)
+            schema_path.write_text(schema)
+
+            protocol = load_protocol(schema_path)
+            generate(root / "schemas", root / "generated")
+            zephyr_header = (
+                root / "generated/c/include/zephyr/ble_properties_ble.h"
+            ).read_text()
+
+            assert protocol.ble is not None
+            self.assertEqual(protocol.ble.service_uuid, "180d")
+            self.assertEqual(protocol.ble.characteristics[0].uuid, "12345678")
+            self.assertEqual(
+                protocol.ble.characteristics[0].properties,
+                (
+                    BleCharacteristicProperty.WRITE_WITHOUT_RESPONSE,
+                    BleCharacteristicProperty.AUTHENTICATED_SIGNED_WRITES,
+                    BleCharacteristicProperty.EXTENDED_PROPERTIES,
+                ),
+            )
+            self.assertIn(
+                "#define BLE_PROPERTIES_ZEPHYR_SERVICE_UUID BT_UUID_DECLARE_16(0x180d)",
+                zephyr_header,
+            )
+            self.assertIn(
+                "#define BLE_PROPERTIES_ZEPHYR_VALUES_CHARACTERISTIC_UUID "
+                "BT_UUID_DECLARE_32(0x12345678)",
+                zephyr_header,
+            )
+            self.assertIn(
+                "(BT_GATT_CHRC_WRITE_WITHOUT_RESP | BT_GATT_CHRC_AUTH | "
+                "BT_GATT_CHRC_EXT_PROP)",
+                zephyr_header,
+            )
 
 
 if __name__ == "__main__":

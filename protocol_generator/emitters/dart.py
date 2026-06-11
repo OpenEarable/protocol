@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from protocol_generator.emitters.base import LanguageEmitter
 from protocol_generator.model import (
     ArrayType,
+    BleCharacteristicProperty,
     BytesType,
     Field,
     FieldType,
@@ -18,9 +19,9 @@ from protocol_generator.model import (
     ScalarType,
     UnionType,
 )
-from protocol_generator.naming import generated_banner, pascal_case, snake_case
+from protocol_generator.naming import generated_banner, lower_camel_case, pascal_case, snake_case
 from protocol_generator.output import GeneratedFile
-from protocol_generator.text import _indent
+from protocol_generator.text import _indent, dart_doc_comment
 
 
 DART_SCALAR_TYPES = {
@@ -43,6 +44,17 @@ DART_CODEC_METHODS = {
     "int32": "int32",
     "float": "float32",
     "double": "float64",
+}
+
+DART_BLE_PROPERTIES = {
+    BleCharacteristicProperty.BROADCAST: "broadcast",
+    BleCharacteristicProperty.READ: "read",
+    BleCharacteristicProperty.WRITE_WITHOUT_RESPONSE: "writeWithoutResponse",
+    BleCharacteristicProperty.WRITE: "write",
+    BleCharacteristicProperty.NOTIFY: "notify",
+    BleCharacteristicProperty.INDICATE: "indicate",
+    BleCharacteristicProperty.AUTHENTICATED_SIGNED_WRITES: "authenticatedSignedWrites",
+    BleCharacteristicProperty.EXTENDED_PROPERTIES: "extendedProperties",
 }
 
 
@@ -76,7 +88,12 @@ class DartEmitter(LanguageEmitter):
         contents = (
             "/// Binary protocol bindings for OpenEarable devices.\n"
             "library;\n\n"
-            "export 'src/protocol_runtime.dart' show ProtocolFormatException;\n"
+            "export 'src/protocol_runtime.dart'\n"
+            "    show\n"
+            "        ProtocolBleCharacteristicDefinition,\n"
+            "        ProtocolBleCharacteristicProperty,\n"
+            "        ProtocolBleServiceDefinition,\n"
+            "        ProtocolFormatException;\n"
             f"{exports}"
         )
         return (
@@ -114,6 +131,88 @@ class _DartRuntimeRenderer:
 
                   @override
                   String toString() => 'ProtocolFormatException: $message';
+                }
+
+                /// Standard Bluetooth GATT characteristic properties.
+                ///
+                /// The enum value names intentionally match Universal BLE's
+                /// `CharacteristicProperty` names.
+                enum ProtocolBleCharacteristicProperty {
+                  broadcast,
+                  read,
+                  writeWithoutResponse,
+                  write,
+                  notify,
+                  indicate,
+                  authenticatedSignedWrites,
+                  extendedProperties,
+                }
+
+                /// Framework-neutral BLE characteristic metadata.
+                class ProtocolBleCharacteristicDefinition {
+                  /// Creates immutable BLE characteristic metadata.
+                  const ProtocolBleCharacteristicDefinition({
+                    required this.name,
+                    required this.uuid,
+                    required this.properties,
+                  });
+
+                  /// Schema name of the characteristic.
+                  final String name;
+
+                  /// Bluetooth characteristic UUID.
+                  final String uuid;
+
+                  /// Standard GATT characteristic properties.
+                  final Set<ProtocolBleCharacteristicProperty> properties;
+
+                  /// Property names accepted by Universal BLE's
+                  /// `CharacteristicProperty.values.byName`.
+                  Set<String> get universalBlePropertyNames =>
+                      properties.map((property) => property.name).toSet();
+
+                  /// Whether a GATT client may read this characteristic.
+                  bool get isReadable =>
+                      properties.contains(ProtocolBleCharacteristicProperty.read);
+
+                  /// Whether a GATT client may write this characteristic.
+                  bool get isWritable =>
+                      properties.contains(ProtocolBleCharacteristicProperty.write) ||
+                      properties.contains(
+                        ProtocolBleCharacteristicProperty.writeWithoutResponse,
+                      ) ||
+                      properties.contains(
+                        ProtocolBleCharacteristicProperty.authenticatedSignedWrites,
+                      );
+
+                  /// Maps these properties to a framework enum with matching names.
+                  ///
+                  /// For Universal BLE, pass `CharacteristicProperty.values` and
+                  /// `(property) => property.name`.
+                  List<T> mapPropertiesByName<T>(
+                    Iterable<T> availableProperties,
+                    String Function(T property) nameOf,
+                  ) {
+                    final names = universalBlePropertyNames;
+                    return availableProperties
+                        .where((property) => names.contains(nameOf(property)))
+                        .toList();
+                  }
+                }
+
+                /// Framework-neutral BLE service metadata.
+                class ProtocolBleServiceDefinition {
+                  /// Creates immutable BLE service metadata.
+                  const ProtocolBleServiceDefinition({
+                    required this.uuid,
+                    required this.characteristics,
+                  });
+
+                  /// Bluetooth service UUID.
+                  final String uuid;
+
+                  /// Characteristics exposed by this service.
+                  final List<ProtocolBleCharacteristicDefinition> characteristics;
                 }
 
                 /// Writes little-endian protocol values into a byte buffer.
@@ -268,18 +367,78 @@ class _DartRenderer:
             "import 'dart:typed_data';\n",
             "import 'protocol_runtime.dart';\n\n",
         ]
+        if self.protocol.ble is not None:
+            parts.append(self._ble_uuid_constants())
         for message in self.protocol.messages:
             parts.append(self._message(message))
         return "".join(parts)
 
+    def _ble_uuid_constants(self) -> str:
+        """Render BLE service and characteristic UUID constants."""
+
+        assert self.protocol.ble is not None
+        class_name = f"{self.prefix}BleUuids"
+        lines = [
+            f"/// BLE UUIDs for the {self.protocol.name} protocol.",
+            f"abstract final class {class_name} {{",
+            f"  /// BLE service UUID.",
+            f"  static const String serviceUuid = '{self.protocol.ble.service_uuid}';",
+        ]
+        for characteristic in self.protocol.ble.characteristics:
+            characteristic_prefix = lower_camel_case(characteristic.name)
+            constant_name = f"{characteristic_prefix}CharacteristicUuid"
+            properties = [
+                f"ProtocolBleCharacteristicProperty.{DART_BLE_PROPERTIES[property]}"
+                for property in characteristic.properties
+            ]
+            lines.extend(
+                [
+                    "",
+                    f"  /// BLE UUID for the {characteristic.name} characteristic.",
+                    f"  static const String {constant_name} = '{characteristic.uuid}';",
+                    "",
+                    f"  /// BLE metadata for the {characteristic.name} characteristic.",
+                    f"  static const ProtocolBleCharacteristicDefinition "
+                    f"{characteristic_prefix}Characteristic =",
+                    "      ProtocolBleCharacteristicDefinition(",
+                    f"        name: '{characteristic.name}',",
+                    f"        uuid: {constant_name},",
+                    "        properties: {",
+                    *(f"          {property_value}," for property_value in properties),
+                    "        },",
+                    "      );",
+                ]
+            )
+        characteristic_references = ", ".join(
+            f"{lower_camel_case(characteristic.name)}Characteristic"
+            for characteristic in self.protocol.ble.characteristics
+        )
+        lines.extend(
+            [
+                "",
+                "  /// Complete framework-neutral BLE service metadata.",
+                "  static const ProtocolBleServiceDefinition service =",
+                "      ProtocolBleServiceDefinition(",
+                "        uuid: serviceUuid,",
+                f"        characteristics: [{characteristic_references}],",
+                "      );",
+            ]
+        )
+        lines.extend(["}", ""])
+        return "\n".join(lines) + "\n"
+
     def _message(self, message: Message) -> str:
         class_name = self._class_name(message.name)
+        documentation = dart_doc_comment(
+            message.description,
+            f"{pascal_case(message.name)} message for the {self.protocol.name} protocol.",
+        )
         ctor_params = ", ".join(f"required this.{field.name}" for field in message.fields)
         declarations = "\n".join(f"  {self._dart_type(field.type)} {field.name};" for field in message.fields)
         read_lines = self._read_lines(message)
         write_lines = self._write_lines(message)
         return (
-            f"/// {pascal_case(message.name)} message for the {self.protocol.name} protocol.\n"
+            f"{documentation}\n"
             f"class {class_name} {{\n"
             f"  /// Creates a {class_name} value.\n"
             f"  {class_name}({{{ctor_params}}});\n\n"
