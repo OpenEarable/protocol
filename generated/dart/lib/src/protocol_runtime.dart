@@ -14,6 +14,88 @@ class ProtocolFormatException implements Exception {
   String toString() => 'ProtocolFormatException: $message';
 }
 
+/// Standard Bluetooth GATT characteristic properties.
+///
+/// The enum value names intentionally match Universal BLE's
+/// `CharacteristicProperty` names.
+enum ProtocolBleCharacteristicProperty {
+  broadcast,
+  read,
+  writeWithoutResponse,
+  write,
+  notify,
+  indicate,
+  authenticatedSignedWrites,
+  extendedProperties,
+}
+
+/// Framework-neutral BLE characteristic metadata.
+class ProtocolBleCharacteristicDefinition {
+  /// Creates immutable BLE characteristic metadata.
+  const ProtocolBleCharacteristicDefinition({
+    required this.name,
+    required this.uuid,
+    required this.properties,
+  });
+
+  /// Schema name of the characteristic.
+  final String name;
+
+  /// Bluetooth characteristic UUID.
+  final String uuid;
+
+  /// Standard GATT characteristic properties.
+  final Set<ProtocolBleCharacteristicProperty> properties;
+
+  /// Property names accepted by Universal BLE's
+  /// `CharacteristicProperty.values.byName`.
+  Set<String> get universalBlePropertyNames =>
+      properties.map((property) => property.name).toSet();
+
+  /// Whether a GATT client may read this characteristic.
+  bool get isReadable =>
+      properties.contains(ProtocolBleCharacteristicProperty.read);
+
+  /// Whether a GATT client may write this characteristic.
+  bool get isWritable =>
+      properties.contains(ProtocolBleCharacteristicProperty.write) ||
+      properties.contains(
+        ProtocolBleCharacteristicProperty.writeWithoutResponse,
+      ) ||
+      properties.contains(
+        ProtocolBleCharacteristicProperty.authenticatedSignedWrites,
+      );
+
+  /// Maps these properties to a framework enum with matching names.
+  ///
+  /// For Universal BLE, pass `CharacteristicProperty.values` and
+  /// `(property) => property.name`.
+  List<T> mapPropertiesByName<T>(
+    Iterable<T> availableProperties,
+    String Function(T property) nameOf,
+  ) {
+    final names = universalBlePropertyNames;
+    return availableProperties
+        .where((property) => names.contains(nameOf(property)))
+        .toList();
+  }
+}
+
+/// Framework-neutral BLE service metadata.
+class ProtocolBleServiceDefinition {
+  /// Creates immutable BLE service metadata.
+  const ProtocolBleServiceDefinition({
+    required this.uuid,
+    required this.characteristics,
+  });
+
+  /// Bluetooth service UUID.
+  final String uuid;
+
+  /// Characteristics exposed by this service.
+  final List<ProtocolBleCharacteristicDefinition> characteristics;
+}
+
 /// Writes little-endian protocol values into a byte buffer.
 class ProtocolWriter {
   final BytesBuilder _builder = BytesBuilder(copy: false);
