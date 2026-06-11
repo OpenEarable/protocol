@@ -1,48 +1,102 @@
 protocol: audio-response
 version: 1
-description: Protocol for audio response messages, including buffers, tones, and sound types.
+description: Protocol for uploading audio buffers, playing them, and measuring their audio response.
 
 transport:
   ble:
-    service_uuid: 12345678-1234-5678-1234-56789abcdef0
+    service_uuid: 7467b395-9043-4453-bc5c-2d8e8b10680a
     characteristics:
-      - name: audio_response
-        uuid: 12345678-1234-5678-1234-56789abcdef1
-        properties: [read, write, notify]
+      - name: transfer_control
+        uuid: 7467b398-9043-4453-bc5c-2d8e8b10680a
+        properties: [write]
+      - name: transfer_data
+        uuid: 7467b399-9043-4453-bc5c-2d8e8b10680a
+        properties: [write_without_response]
+      - name: transfer_status
+        uuid: 7467b39a-9043-4453-bc5c-2d8e8b10680a
+        properties: [notify]
+      - name: config
+        uuid: 7467b39b-9043-4453-bc5c-2d8e8b10680a
+        properties: [write]
+      - name: result
+        uuid: 7467b39c-9043-4453-bc5c-2d8e8b10680a
+        properties: [notify]
 
 messages:
-  buffer:
-    description: A message containing audio data in a buffer format.
+  transfer_start:
+    description: Starts uploading an audio sample buffer. The checksum is CRC-32/ISO-HDLC over all little-endian encoded samples.
     fields:
-      - name: length
+      - name: transfer_id
         type: uint16
+      - name: total_samples
+        type: uint32
       - name: sampling_rate
-        type: uint16
-      - name: buffer
-        type: bytes[length]
+        type: uint32
+      - name: checksum
+        type: uint32
 
-  tone:
-    description: A message containing audio data in a tone format.
+  transfer_commit:
+    description: Validates and makes a completely uploaded audio sample buffer available.
     fields:
-      - name: frequency
-        type: uint16
-      - name: duration
+      - name: transfer_id
         type: uint16
 
-  audio_response:
+  transfer_abort:
+    description: Aborts an active audio sample buffer upload.
+    fields:
+      - name: transfer_id
+        type: uint16
+
+  transfer_control:
+    description: A tagged transfer control command. Type 0 starts, type 1 commits, and type 2 aborts a transfer.
+    fields:
+      - name: type
+        type: uint8
+      - name: command
+        type: transfer_start | transfer_commit | transfer_abort
+
+  transfer_chunk:
+    description: Uploads a contiguous section of an audio sample buffer.
+    fields:
+      - name: transfer_id
+        type: uint16
+      - name: sample_offset
+        type: uint32
+      - name: sample_count
+        type: uint16
+      - name: samples
+        type: int16[sample_count]
+
+  transfer_status:
+    description: Reports transfer progress, available chunk credits, or an error.
+    fields:
+      - name: transfer_id
+        type: uint16
+      - name: status
+        type: uint8
+      - name: next_sample_offset
+        type: uint32
+      - name: credits
+        type: uint16
+
+  config:
+    description: Starts an audio response measurement using a committed audio sample buffer.
+    fields:
+      - name: id
+        type: uint8
+      - name: transfer_id
+        type: uint16
+      - name: volume
+        type: float
+
+  result:
     description: A message containing audio response data. Each point represents a frequency and its corresponding response value.
     fields:
+      - name: id
+        type: uint8
       - name: points
         type: uint8
       - name: frequencies
         type: uint16[points]
       - name: response
         type: uint16[points]
-
-  sound:
-    description: A message containing the sound to be played, which can be either a buffer or a tone.
-    fields:
-      - name: type
-        type: uint8
-      - name: data
-        type: buffer | tone
