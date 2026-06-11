@@ -19,6 +19,7 @@ written to:
 - `generated/dart/lib/src/*_protocol.dart`
 - `generated/c/include/protocol_runtime.h`
 - `generated/c/include/*_protocol.h`
+- `generated/c/include/zephyr/*_ble.h`
 - `generated/c/src/protocol_runtime.c`
 - `generated/c/src/*_protocol.c`
 - `generated/c/CMakeLists.txt`
@@ -72,12 +73,78 @@ description: Protocol description.
 
 messages:
   message_name:
+    description: Human-readable documentation for the generated message type.
     fields:
       - name: count
         type: uint8
       - name: values
         type: uint16[count]
 ```
+
+Message descriptions are optional but recommended. The generator emits them as
+Dart documentation comments and C Doxygen comments. When omitted, it generates
+a stable description from the message and protocol names.
+
+Optional BLE transport metadata is retained in generated APIs:
+
+```yaml
+transport:
+  ble:
+    service_uuid: 12345678-1234-5678-1234-56789abcdef0
+    characteristics:
+      - name: measurements
+        uuid: 12345678-1234-5678-1234-56789abcdef1
+        properties: [read, notify]
+```
+
+Supported characteristic properties are `broadcast`, `read`,
+`write_without_response`, `write`, `notify`, `indicate`,
+`authenticated_signed_writes`, and `extended_properties`. Hyphenated and
+UniversalBLE-style camelCase spellings such as `writeWithoutResponse` are also
+accepted.
+
+Dart exposes framework-neutral service and characteristic definitions through
+a protocol-specific `*BleUuids` constants class. Its property enum names match
+UniversalBLE's `CharacteristicProperty` names, so an application can convert
+them without making the generated package depend on UniversalBLE:
+
+```dart
+import 'package:open_earable_protocols/open_earable_protocols.dart';
+import 'package:universal_ble/universal_ble.dart';
+
+final definition = AudioResponseBleUuids.audioResponseCharacteristic;
+final properties = definition.mapPropertiesByName(
+  CharacteristicProperty.values,
+  (property) => property.name,
+);
+final characteristic = BleCharacteristic(definition.uuid, properties, []);
+```
+
+`isReadable` and `isWritable` are available when deriving peripheral
+permissions.
+
+C exposes UUID strings and standard GATT property bitmasks as
+protocol-prefixed macros. An additional opt-in Zephyr header maps those values
+to Zephyr UUID declarations, characteristic properties, and default
+permissions:
+
+```c
+#include "zephyr/audio_response_ble.h"
+
+BT_GATT_SERVICE_DEFINE(audio_response_service,
+  BT_GATT_PRIMARY_SERVICE(AUDIO_RESPONSE_ZEPHYR_SERVICE_UUID),
+  BT_GATT_CHARACTERISTIC(
+    AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CHARACTERISTIC_UUID,
+    AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CHARACTERISTIC_PROPERTIES,
+    AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CHARACTERISTIC_PERMISSIONS,
+    read_callback, write_callback, NULL),
+  BT_GATT_CCC(configuration_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
+```
+
+Add a `BT_GATT_CCC` entry when a characteristic uses `notify` or `indicate`.
+The Zephyr adapter derives ordinary read/write permissions; applications remain
+responsible for selecting encrypted or authenticated permission variants when
+required.
 
 Supported scalar field types are:
 

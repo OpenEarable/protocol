@@ -19,6 +19,10 @@ language-specific emitter strategies.
 
 The domain model contains protocol concepts only. Language-specific mappings,
 such as Dart `double` or C `float`, stay inside their respective emitter.
+Optional BLE service and characteristic metadata is also represented in the
+domain model so every emitter can expose transport identifiers appropriately.
+Protocol and message descriptions are retained as validated metadata so each
+emitter can produce native documentation comments.
 
 ## Shared Language Runtimes
 
@@ -62,6 +66,39 @@ All generated codecs use little-endian byte order. Integer fields use their
 declared fixed width. `float` and `double` use IEEE-754 binary32 and binary64
 respectively. Integer fields may control dynamic lengths and union
 discriminators; floating-point fields may not.
+
+## Generated Documentation
+
+The schema loader preserves each optional message `description` in the
+language-neutral `Message` model. Emitters format that text using native
+documentation syntax: Dart emits `///` comments and C emits Doxygen `/** */`
+comments for message structs and public codec functions. Shared formatting
+helpers normalize whitespace, wrap long descriptions, and protect C comment
+boundaries. Emitters generate a stable fallback when a message has no
+description.
+
+## BLE Metadata
+
+The schema loader converts an optional `transport.ble` section into
+`BleTransport` and `BleCharacteristic` domain values. Characteristic properties
+are validated into the language-neutral `BleCharacteristicProperty` enum.
+UUIDs are validated and normalized as Bluetooth 16-, 32-, or 128-bit UUIDs
+before they reach an emitter.
+
+The Dart emitter exposes UUID strings plus framework-neutral
+`ProtocolBleServiceDefinition` and `ProtocolBleCharacteristicDefinition`
+values. Generated property enum names intentionally match UniversalBLE's
+`CharacteristicProperty` names. `mapPropertiesByName` converts the generated
+properties to UniversalBLE or another compatible enum without adding a
+UniversalBLE dependency to the generated package. `isReadable` and `isWritable`
+support deriving peripheral permissions.
+
+The C emitter exposes UUID strings and standard GATT property bitmasks in the
+general protocol header. BLE protocols also receive an opt-in
+`include/zephyr/*_ble.h` adapter. This header maps normalized UUIDs to
+`BT_UUID_DECLARE_*`, properties to `BT_GATT_CHRC_*`, and default read/write
+permissions to `BT_GATT_PERM_*`. Keeping the Zephyr include separate prevents
+the general C API from depending on Zephyr.
 
 ## Package Responsibilities
 
