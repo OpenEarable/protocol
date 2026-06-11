@@ -49,26 +49,54 @@ class GenerateProtocolsTest(unittest.TestCase):
         protocol = load_protocol(pathlib.Path("schemas/audio-response/protocol.yml"))
 
         self.assertEqual(protocol.name, "audio-response")
-        self.assertEqual(protocol.version, 1)
+        self.assertEqual(protocol.version, 2)
         self.assertIsNotNone(protocol.ble)
         assert protocol.ble is not None
         self.assertEqual(protocol.ble.service_uuid, "7467b395-9043-4453-bc5c-2d8e8b10680a")
-        self.assertEqual(protocol.ble.characteristics[0].name, "audio_response_config")
+        self.assertEqual(protocol.ble.characteristics[0].name, "transfer_control")
         self.assertEqual(
             protocol.ble.characteristics[0].properties,
             (BleCharacteristicProperty.WRITE,),
         )
         self.assertEqual(
             protocol.ble.characteristics[0].uuid,
-            "7467b396-9043-4453-bc5c-2d8e8b10680a",
+            "7467b398-9043-4453-bc5c-2d8e8b10680a",
+        )
+        self.assertEqual(
+            protocol.ble.characteristics[1].properties,
+            (BleCharacteristicProperty.WRITE_WITHOUT_RESPONSE,),
+        )
+        self.assertEqual(
+            protocol.ble.characteristics[2].properties,
+            (BleCharacteristicProperty.NOTIFY,),
+        )
+        self.assertEqual(
+            [characteristic.uuid for characteristic in protocol.ble.characteristics],
+            [
+                "7467b398-9043-4453-bc5c-2d8e8b10680a",
+                "7467b399-9043-4453-bc5c-2d8e8b10680a",
+                "7467b39a-9043-4453-bc5c-2d8e8b10680a",
+                "7467b39b-9043-4453-bc5c-2d8e8b10680a",
+                "7467b39c-9043-4453-bc5c-2d8e8b10680a",
+            ],
         )
         self.assertEqual(
             [message.name for message in protocol.messages],
-            ["buffer", "tone", "data", "sound", "config"],
+            [
+                "transfer_start",
+                "transfer_commit",
+                "transfer_abort",
+                "transfer_control",
+                "transfer_chunk",
+                "transfer_status",
+                "config",
+                "result",
+            ],
         )
         self.assertEqual(
             protocol.messages[0].description,
-            "A message containing audio data in a buffer format.",
+            "Starts uploading an audio sample buffer. The checksum is CRC-32/ISO-HDLC "
+            "over all little-endian encoded samples.",
         )
 
     def test_generates_dart_and_c_outputs(self) -> None:
@@ -110,9 +138,11 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn("ProtocolBleCharacteristicDefinition", dart_library)
             self.assertIn("ProtocolBleCharacteristicProperty", dart_library)
             self.assertIn("export 'src/audio_response_protocol.dart';", dart_library)
-            self.assertIn("class AudioResponseSound", dart_output)
+            self.assertIn("class AudioResponseTransferControl", dart_output)
+            self.assertIn("class AudioResponseTransferChunk", dart_output)
+            self.assertIn("class AudioResponseTransferStatus", dart_output)
             self.assertIn(
-                "/// A message containing audio data in a buffer format.",
+                "/// Starts uploading an audio sample buffer.",
                 dart_output,
             )
             self.assertIn("abstract final class AudioResponseBleUuids", dart_output)
@@ -121,11 +151,12 @@ class GenerateProtocolsTest(unittest.TestCase):
                 dart_output,
             )
             self.assertIn(
-                "static const String audioResponseConfigCharacteristicUuid = "
-                "'7467b396-9043-4453-bc5c-2d8e8b10680a';",
+                "static const String transferControlCharacteristicUuid = "
+                "'7467b398-9043-4453-bc5c-2d8e8b10680a';",
                 dart_output,
             )
             self.assertIn("ProtocolBleCharacteristicProperty.write", dart_output)
+            self.assertIn("ProtocolBleCharacteristicProperty.writeWithoutResponse", dart_output)
             self.assertIn("ProtocolBleCharacteristicProperty.notify", dart_output)
             self.assertIn("static const ProtocolBleServiceDefinition service", dart_output)
             self.assertIn("mapPropertiesByName", dart_runtime)
@@ -134,10 +165,12 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn("import 'protocol_runtime.dart';", dart_output)
             self.assertNotIn("class ProtocolWriter", dart_output)
             self.assertIn("class ProtocolWriter", dart_runtime)
-            self.assertIn("audio_response_sound_encode", c_header)
+            self.assertIn("audio_response_transfer_control_encode", c_header)
+            self.assertIn("audio_response_transfer_chunk_encode", c_header)
+            self.assertIn("audio_response_transfer_status_encode", c_header)
             self.assertIn('#include "protocol_runtime.h"', c_header)
             self.assertIn(
-                "/** A message containing audio data in a buffer format. */",
+                "/** Uploads a contiguous section of an audio sample buffer. */",
                 c_header,
             )
             self.assertIn("Encode a binary representation of this message.", c_header)
@@ -146,12 +179,17 @@ class GenerateProtocolsTest(unittest.TestCase):
                 c_header,
             )
             self.assertIn(
-                "#define AUDIO_RESPONSE_BLE_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_UUID "
-                '"7467b396-9043-4453-bc5c-2d8e8b10680a"',
+                "#define AUDIO_RESPONSE_BLE_TRANSFER_CONTROL_CHARACTERISTIC_UUID "
+                '"7467b398-9043-4453-bc5c-2d8e8b10680a"',
                 c_header,
             )
             self.assertIn(
-                "#define AUDIO_RESPONSE_BLE_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_PROPERTIES "
+                "#define AUDIO_RESPONSE_BLE_TRANSFER_DATA_CHARACTERISTIC_PROPERTIES "
+                "(PROTOCOL_BLE_PROPERTY_WRITE_WITHOUT_RESPONSE)",
+                c_header,
+            )
+            self.assertIn(
+                "#define AUDIO_RESPONSE_BLE_CONFIG_CHARACTERISTIC_PROPERTIES "
                 "(PROTOCOL_BLE_PROPERTY_WRITE)",
                 c_header,
             )
@@ -161,12 +199,12 @@ class GenerateProtocolsTest(unittest.TestCase):
                 zephyr_header,
             )
             self.assertIn(
-                "#define AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_PROPERTIES "
-                "(BT_GATT_CHRC_WRITE)",
+                "#define AUDIO_RESPONSE_ZEPHYR_TRANSFER_DATA_CHARACTERISTIC_PROPERTIES "
+                "(BT_GATT_CHRC_WRITE_WITHOUT_RESP)",
                 zephyr_header,
             )
             self.assertIn(
-                "#define AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CONFIG_CHARACTERISTIC_PERMISSIONS "
+                "#define AUDIO_RESPONSE_ZEPHYR_TRANSFER_DATA_CHARACTERISTIC_PERMISSIONS "
                 "(BT_GATT_PERM_WRITE)",
                 zephyr_header,
             )
