@@ -112,7 +112,7 @@ them without making the generated package depend on UniversalBLE:
 import 'package:open_earable_protocols/open_earable_protocols.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-final definition = AudioResponseBleUuids.audioResponseCharacteristic;
+final definition = AudioResponseBleUuids.transferControlCharacteristic;
 final properties = definition.mapPropertiesByName(
   CharacteristicProperty.values,
   (property) => property.name,
@@ -134,9 +134,9 @@ permissions:
 BT_GATT_SERVICE_DEFINE(audio_response_service,
   BT_GATT_PRIMARY_SERVICE(AUDIO_RESPONSE_ZEPHYR_SERVICE_UUID),
   BT_GATT_CHARACTERISTIC(
-    AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CHARACTERISTIC_UUID,
-    AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CHARACTERISTIC_PROPERTIES,
-    AUDIO_RESPONSE_ZEPHYR_AUDIO_RESPONSE_CHARACTERISTIC_PERMISSIONS,
+    AUDIO_RESPONSE_ZEPHYR_TRANSFER_CONTROL_CHARACTERISTIC_UUID,
+    AUDIO_RESPONSE_ZEPHYR_TRANSFER_CONTROL_CHARACTERISTIC_PROPERTIES,
+    AUDIO_RESPONSE_ZEPHYR_TRANSFER_CONTROL_CHARACTERISTIC_PERMISSIONS,
     read_callback, write_callback, NULL),
   BT_GATT_CCC(configuration_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
 ```

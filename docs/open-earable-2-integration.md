@@ -52,14 +52,17 @@ Firmware source files can include and use a generated protocol directly:
 #include <audio_response_protocol.h>
 
 uint8_t encoded[32];
+int16_t samples[] = {0, 1000, 0, -1000};
 size_t encoded_size;
-audio_response_tone_t tone = {
-    .frequency = 440,
-    .duration = 1000,
+audio_response_transfer_chunk_t chunk = {
+    .transfer_id = 1,
+    .sample_offset = 0,
+    .sample_count = 4,
+    .samples = samples,
 };
 
-protocol_status_t status = audio_response_tone_encode(
-    &tone,
+protocol_status_t status = audio_response_transfer_chunk_encode(
+    &chunk,
     encoded,
     sizeof(encoded),
     &encoded_size
