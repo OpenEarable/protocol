@@ -262,6 +262,8 @@ class _CRenderer:
         for message in self.protocol.messages:
             parts.append(self._header_struct(message))
         for message in self.protocol.messages:
+            parts.append(self._header_union_api(message))
+        for message in self.protocol.messages:
             c_name = self._c_message_name(message.name)
             description = self._message_description(message)
             parts.append(
@@ -351,6 +353,7 @@ class _CRenderer:
             f'#include "{header_name}"\n\n',
         ]
         for message in self.protocol.messages:
+            parts.append(self._source_union_api(message))
             parts.append(self._source_message(message))
         return "".join(parts)
 
@@ -360,12 +363,74 @@ class _CRenderer:
             message.description,
             self._message_description(message),
         )
-        lines = [f"{documentation}\n", f"typedef struct {c_name}_t {c_name}_t;\n"]
+        lines: list[str] = []
+        for field in self._union_fields(message):
+            field_type = field.type
+            assert isinstance(field_type, UnionType)
+            enum_name = self._union_enum_name(message, field)
+            lines.extend([f"typedef enum {enum_name} {{\n"])
+            for variant in field_type.variants:
+                lines.append(
+                    f"  {self._union_enum_constant(message, field, variant.message.name)} = "
+                    f"{variant.tag},\n"
+                )
+            lines.append(f"}} {enum_name};\n\n")
+        lines.extend([f"{documentation}\n", f"typedef struct {c_name}_t {c_name}_t;\n"])
         body = [f"struct {c_name}_t {{"]
         for field in message.fields:
-            body.extend(self._field_declaration(field))
+            body.extend(self._field_declaration(message, field))
         body.append("};\n\n")
         return "".join(lines + [line + "\n" for line in body])
+
+    def _header_union_api(self, message: Message) -> str:
+        """Render typed constructors and visitor declarations for union messages."""
+
+        c_name = self._c_message_name(message.name)
+        lines: list[str] = []
+        for field in self._union_fields(message):
+            field_type = field.type
+            assert isinstance(field_type, UnionType)
+            handler_name = self._union_handler_name(message, field)
+            lines.extend(
+                [
+                    f"/** Typed handlers used to dispatch {message.name}.{field.name}. */",
+                    f"typedef struct {handler_name} {{",
+                ]
+            )
+            for variant in field_type.variants:
+                variant_name = variant.message.name
+                lines.append(
+                    f"  protocol_status_t (*{self._short_variant_name(message, variant_name)})"
+                    f"(void *context, const {self._c_message_name(variant_name)}_t *command);"
+                )
+            lines.extend([f"}} {handler_name};", ""])
+            for variant in field_type.variants:
+                variant_name = variant.message.name
+                short_name = self._short_variant_name(message, variant_name)
+                lines.extend(
+                    [
+                        f"/** Set {message.name}.{field.name} to {variant_name}. */",
+                        f"void {self._union_setter_name(message, field, short_name)}("
+                        f"{c_name}_t *message, {self._c_message_name(variant_name)}_t command);",
+                    ]
+                )
+                if len(message.fields) == 1:
+                    lines.extend(
+                        [
+                            f"/** Build a {message.name} message containing {variant_name}. */",
+                            f"{c_name}_t {c_name}_from_{short_name}("
+                            f"{self._c_message_name(variant_name)}_t command);",
+                        ]
+                    )
+            lines.extend(
+                [
+                    f"/** Dispatch {message.name}.{field.name} to its typed handler. */",
+                    f"protocol_status_t {self._union_dispatch_name(message, field)}("
+                    f"const {c_name}_t *message, const {handler_name} *handler, void *context);",
+                    "",
+                ]
+            )
+        return "\n".join(lines) + ("\n" if lines else "")
 
     def _message_description(self, message: Message) -> str:
         """Return schema documentation or a stable generated fallback."""
@@ -374,7 +439,7 @@ class _CRenderer:
             f"{pascal_case(message.name)} message for the {self.protocol.name} protocol."
         )
 
-    def _field_declaration(self, field: Field) -> list[str]:
+    def _field_declaration(self, message: Message, field: Field) -> list[str]:
         field_type = field.type
         if isinstance(field_type, ScalarType):
             return [f"  {C_SCALAR_TYPES[field_type.name]} {field.name};"]
@@ -385,9 +450,15 @@ class _CRenderer:
         if isinstance(field_type, MessageRefType):
             return [f"  {self._c_message_name(field_type.name)}_t {field.name};"]
         if isinstance(field_type, UnionType):
-            lines = ["  union {"]
+            lines = [
+                f"  {self._union_enum_name(message, field)} "
+                f"{self._union_discriminator_name(message, field)};",
+                "  union {",
+            ]
             for variant in field_type.variants:
-                lines.append(f"    {self._c_message_name(variant.name)}_t {variant.name};")
+                lines.append(
+                    f"    {self._c_message_name(variant.message.name)}_t {variant.message.name};"
+                )
             lines.append(f"  }} {field.name};")
             return lines
         raise AssertionError(field_type)
@@ -643,13 +714,88 @@ class _CRenderer:
             "}\n\n"
         )
 
+    def _source_union_api(self, message: Message) -> str:
+        """Render typed constructors and centralized visitor dispatch."""
+
+        c_name = self._c_message_name(message.name)
+        lines: list[str] = []
+        for field in self._union_fields(message):
+            field_type = field.type
+            assert isinstance(field_type, UnionType)
+            discriminator = self._union_discriminator_name(message, field)
+            for variant in field_type.variants:
+                variant_name = variant.message.name
+                short_name = self._short_variant_name(message, variant_name)
+                setter_name = self._union_setter_name(message, field, short_name)
+                lines.extend(
+                    [
+                        f"void {setter_name}({c_name}_t *message, "
+                        f"{self._c_message_name(variant_name)}_t command) {{",
+                        "  if (message == NULL) {",
+                        "    return;",
+                        "  }",
+                        f"  message->{discriminator} = "
+                        f"{self._union_enum_constant(message, field, variant_name)};",
+                        f"  message->{field.name}.{variant_name} = command;",
+                        "}",
+                        "",
+                    ]
+                )
+                if len(message.fields) == 1:
+                    lines.extend(
+                        [
+                            f"{c_name}_t {c_name}_from_{short_name}("
+                            f"{self._c_message_name(variant_name)}_t command) {{",
+                            f"  {c_name}_t message = {{0}};",
+                            f"  {setter_name}(&message, command);",
+                            "  return message;",
+                            "}",
+                            "",
+                        ]
+                    )
+            lines.extend(
+                [
+                    f"protocol_status_t {self._union_dispatch_name(message, field)}("
+                    f"const {c_name}_t *message, "
+                    f"const {self._union_handler_name(message, field)} *handler, "
+                    "void *context) {",
+                    "  if (message == NULL || handler == NULL) {",
+                    "    return PROTOCOL_ERROR_INVALID_DATA;",
+                    "  }",
+                    f"  switch (message->{discriminator}) {{",
+                ]
+            )
+            for variant in field_type.variants:
+                variant_name = variant.message.name
+                short_name = self._short_variant_name(message, variant_name)
+                lines.extend(
+                    [
+                        f"  case {self._union_enum_constant(message, field, variant_name)}:",
+                        f"    if (handler->{short_name} == NULL) {{",
+                        "      return PROTOCOL_ERROR_INVALID_DATA;",
+                        "    }",
+                        f"    return handler->{short_name}(context, "
+                        f"&message->{field.name}.{variant_name});",
+                    ]
+                )
+            lines.extend(
+                [
+                    "  default:",
+                    "    return PROTOCOL_ERROR_INVALID_DATA;",
+                    "  }",
+                    "}",
+                    "",
+                ]
+            )
+        return "\n".join(lines) + ("\n" if lines else "")
+
     def _c_write_lines(self, message: Message) -> str:
         lines: list[str] = [f"protocol_status_t status;"]
         for field in message.fields:
-            lines.extend(self._c_write_field(field))
+            lines.extend(self._c_write_field(message, field))
         return "\n".join(lines)
 
-    def _c_write_field(self, field: Field) -> list[str]:
+    def _c_write_field(self, message: Message, field: Field) -> list[str]:
         field_type = field.type
         if isinstance(field_type, ScalarType):
             return [
@@ -674,12 +820,19 @@ class _CRenderer:
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, UnionType):
-            lines = ["switch (message->type) {"]
-            for index, variant in enumerate(field_type.variants):
+            discriminator = self._union_discriminator_name(message, field)
+            lines = [
+                f"status = protocol_write_{field_type.tag_type.name}(writer, "
+                f"message->{discriminator});",
+                "if (status != PROTOCOL_OK) return status;",
+                f"switch (message->{discriminator}) {{",
+            ]
+            for variant in field_type.variants:
                 lines.extend(
                     [
-                        f"case {index}:",
-                        f"  status = {self._c_message_name(variant.name)}_write(writer, &message->{field.name}.{variant.name});",
+                        f"case {self._union_enum_constant(message, field, variant.message.name)}:",
+                        f"  status = {self._c_message_name(variant.message.name)}_write(writer, "
+                        f"&message->{field.name}.{variant.message.name});",
                         f"  if (status != PROTOCOL_OK) return status;",
                         "  break;",
                     ]
@@ -691,10 +844,10 @@ class _CRenderer:
     def _c_read_lines(self, message: Message) -> str:
         lines = [f"protocol_status_t status;"]
         for field in message.fields:
-            lines.extend(self._c_read_field(field))
+            lines.extend(self._c_read_field(message, field))
         return "\n".join(lines)
 
-    def _c_read_field(self, field: Field) -> list[str]:
+    def _c_read_field(self, message: Message, field: Field) -> list[str]:
         field_type = field.type
         if isinstance(field_type, ScalarType):
             return [
@@ -719,12 +872,22 @@ class _CRenderer:
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, UnionType):
-            lines = ["switch (message->type) {"]
-            for index, variant in enumerate(field_type.variants):
+            discriminator = self._union_discriminator_name(message, field)
+            raw_type = C_SCALAR_TYPES[field_type.tag_type.name]
+            enum_name = self._union_enum_name(message, field)
+            lines = [
+                f"{raw_type} raw_{discriminator};",
+                f"status = protocol_read_{field_type.tag_type.name}(reader, &raw_{discriminator});",
+                "if (status != PROTOCOL_OK) return status;",
+                f"message->{discriminator} = ({enum_name})raw_{discriminator};",
+                f"switch (message->{discriminator}) {{",
+            ]
+            for variant in field_type.variants:
                 lines.extend(
                     [
-                        f"case {index}:",
-                        f"  status = {self._c_message_name(variant.name)}_read(reader, &message->{field.name}.{variant.name});",
+                        f"case {self._union_enum_constant(message, field, variant.message.name)}:",
+                        f"  status = {self._c_message_name(variant.message.name)}_read(reader, "
+                        f"&message->{field.name}.{variant.message.name});",
                         f"  if (status != PROTOCOL_OK) return status;",
                         "  break;",
                     ]
@@ -735,6 +898,56 @@ class _CRenderer:
 
     def _c_message_name(self, message_name: str) -> str:
         return f"{self.prefix}_{snake_case(message_name)}"
+
+    @staticmethod
+    def _union_fields(message: Message) -> tuple[Field, ...]:
+        """Return the tagged-union fields declared by a message."""
+
+        return tuple(field for field in message.fields if isinstance(field.type, UnionType))
+
+    def _union_discriminator_name(self, message: Message, field: Field) -> str:
+        """Return a concise discriminator name without causing field collisions."""
+
+        return "type" if len(self._union_fields(message)) == 1 else f"{field.name}_type"
+
+    def _union_enum_name(self, message: Message, field: Field) -> str:
+        """Return the generated C enum type for a tagged union."""
+
+        suffix = "type" if len(self._union_fields(message)) == 1 else f"{field.name}_type"
+        return f"{self._c_message_name(message.name)}_{suffix}_t"
+
+    def _union_enum_constant(self, message: Message, field: Field, variant_name: str) -> str:
+        """Return the generated enum constant for a union variant."""
+
+        parts = [self.prefix, message.name]
+        if len(self._union_fields(message)) != 1:
+            parts.append(field.name)
+        parts.append(self._short_variant_name(message, variant_name))
+        return snake_case("_".join(parts)).upper()
+
+    def _union_handler_name(self, message: Message, field: Field) -> str:
+        """Return the typed visitor structure name for a union field."""
+
+        suffix = "" if len(self._union_fields(message)) == 1 else f"_{field.name}"
+        return f"{self._c_message_name(message.name)}{suffix}_handler_t"
+
+    def _union_dispatch_name(self, message: Message, field: Field) -> str:
+        """Return the typed visitor function name for a union field."""
+
+        suffix = "" if len(self._union_fields(message)) == 1 else f"_{field.name}"
+        return f"{self._c_message_name(message.name)}_dispatch{suffix}"
+
+    def _union_setter_name(self, message: Message, field: Field, variant_name: str) -> str:
+        """Return the typed union setter name."""
+
+        return f"{self._c_message_name(message.name)}_set_{field.name}_{variant_name}"
+
+    @staticmethod
+    def _short_variant_name(message: Message, variant_name: str) -> str:
+        """Remove a shared message prefix from a variant for concise APIs."""
+
+        prefix = f"{message.name.removesuffix('_control')}_"
+        return variant_name.removeprefix(prefix)
 
 
 def _c_property_expression(

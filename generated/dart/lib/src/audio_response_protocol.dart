@@ -80,9 +80,12 @@ abstract final class AudioResponseBleUuids {
       );
 }
 
+/// Payload accepted by AudioResponseTransferControl.command.
+sealed class AudioResponseTransferControlCommand {}
+
 /// Starts uploading an audio sample buffer. The checksum is CRC-32/ISO-HDLC over all
 /// little-endian encoded samples.
-class AudioResponseTransferStart {
+class AudioResponseTransferStart implements AudioResponseTransferControlCommand {
   /// Creates a AudioResponseTransferStart value.
   AudioResponseTransferStart({required this.transfer_id, required this.total_samples, required this.sampling_rate, required this.checksum});
 
@@ -123,7 +126,7 @@ class AudioResponseTransferStart {
 }
 
 /// Validates and makes a completely uploaded audio sample buffer available.
-class AudioResponseTransferCommit {
+class AudioResponseTransferCommit implements AudioResponseTransferControlCommand {
   /// Creates a AudioResponseTransferCommit value.
   AudioResponseTransferCommit({required this.transfer_id});
 
@@ -155,7 +158,7 @@ class AudioResponseTransferCommit {
 }
 
 /// Aborts an active audio sample buffer upload.
-class AudioResponseTransferAbort {
+class AudioResponseTransferAbort implements AudioResponseTransferControlCommand {
   /// Creates a AudioResponseTransferAbort value.
   AudioResponseTransferAbort({required this.transfer_id});
 
@@ -190,10 +193,21 @@ class AudioResponseTransferAbort {
 /// transfer.
 class AudioResponseTransferControl {
   /// Creates a AudioResponseTransferControl value.
-  AudioResponseTransferControl({required this.type, required this.command});
+  AudioResponseTransferControl({required this.command});
 
-  final int type;
-  final Object /* AudioResponseTransferStart, AudioResponseTransferCommit, AudioResponseTransferAbort */ command;
+  /// Creates a AudioResponseTransferControl containing AudioResponseTransferStart.
+  factory AudioResponseTransferControl.start(AudioResponseTransferStart command) =>
+      AudioResponseTransferControl(command: command);
+
+  /// Creates a AudioResponseTransferControl containing AudioResponseTransferCommit.
+  factory AudioResponseTransferControl.commit(AudioResponseTransferCommit command) =>
+      AudioResponseTransferControl(command: command);
+
+  /// Creates a AudioResponseTransferControl containing AudioResponseTransferAbort.
+  factory AudioResponseTransferControl.abort(AudioResponseTransferAbort command) =>
+      AudioResponseTransferControl(command: command);
+
+  final AudioResponseTransferControlCommand command;
 
   /// Decodes a complete AudioResponseTransferControl value from [bytes].
   factory AudioResponseTransferControl.fromBytes(Uint8List bytes) {
@@ -204,9 +218,9 @@ class AudioResponseTransferControl {
   }
 
   static AudioResponseTransferControl _read(ProtocolReader reader) {
-    final type = reader.uint8();
-    final Object command;
-    switch (type) {
+    final commandType = reader.uint8();
+    final AudioResponseTransferControlCommand command;
+    switch (commandType) {
       case 0:
         command = AudioResponseTransferStart._read(reader);
         break;
@@ -217,9 +231,9 @@ class AudioResponseTransferControl {
         command = AudioResponseTransferAbort._read(reader);
         break;
       default:
-        throw ProtocolFormatException('unknown union discriminator $type');
+        throw ProtocolFormatException('unknown union discriminator ${commandType}');
     }
-    return AudioResponseTransferControl(type: type, command: command);
+    return AudioResponseTransferControl(command: command);
   }
 
   /// Encodes this value to the protocol binary representation.
@@ -230,27 +244,20 @@ class AudioResponseTransferControl {
   }
 
   void _write(ProtocolWriter writer) {
-    writer.uint8(type);
     if (command is AudioResponseTransferStart) {
-        if (type != 0) {
-          throw const ProtocolFormatException('union discriminator does not match payload type');
-        }
-        (command as AudioResponseTransferStart)._write(writer);
-        return;
+      writer.uint8(0);
+      (command as AudioResponseTransferStart)._write(writer);
+      return;
     }
     if (command is AudioResponseTransferCommit) {
-        if (type != 1) {
-          throw const ProtocolFormatException('union discriminator does not match payload type');
-        }
-        (command as AudioResponseTransferCommit)._write(writer);
-        return;
+      writer.uint8(1);
+      (command as AudioResponseTransferCommit)._write(writer);
+      return;
     }
     if (command is AudioResponseTransferAbort) {
-        if (type != 2) {
-          throw const ProtocolFormatException('union discriminator does not match payload type');
-        }
-        (command as AudioResponseTransferAbort)._write(writer);
-        return;
+      writer.uint8(2);
+      (command as AudioResponseTransferAbort)._write(writer);
+      return;
     }
     throw ProtocolFormatException('unsupported union payload: ${command.runtimeType}');
   }

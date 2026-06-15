@@ -1,9 +1,8 @@
 import 'package:open_earable_protocols/open_earable_protocols.dart';
 
 void main() {
-  final start = AudioResponseTransferControl(
-    type: 0,
-    command: AudioResponseTransferStart(
+  final start = AudioResponseTransferControl.start(
+    AudioResponseTransferStart(
       transfer_id: 1,
       total_samples: 4,
       sampling_rate: 16000,

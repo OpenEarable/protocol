@@ -160,12 +160,32 @@ Supported dynamic field types:
 - `bytes[length_field]` for variable-length byte payloads.
 - `uint16[length_field]` and other scalar arrays for variable-length arrays.
 - `float[length_field]` and `double[length_field]` for floating-point arrays.
-- `message_a | message_b` for tagged unions.
 
 Length fields must be integer fields and must appear before the dynamic field
-that references them. Union fields require a preceding integer field named
-`type`; discriminator value `0` maps to the first union variant, `1` to the
-second, and so on.
+that references them.
+
+Tagged unions declare their discriminator width and stable numeric tags
+explicitly:
+
+```yaml
+- name: command
+  type: union
+  tag_type: uint8
+  variants:
+    0: transfer_start
+    1: transfer_commit
+    2: transfer_abort
+```
+
+The generated C API exposes a named discriminator enum, typed constructors, and
+a typed visitor. It also generates typed setters for union fields. Construct
+single-union messages with functions such as
+`audio_response_transfer_control_from_start`, or set an existing message with
+`audio_response_transfer_control_set_command_start`; dispatch decoded values
+with `audio_response_transfer_control_dispatch`. The generated Dart API uses a
+sealed payload interface and named factories such as
+`AudioResponseTransferControl.start`. Both APIs infer the discriminator from
+the selected payload type.
 
 ## C Decode Ownership
 

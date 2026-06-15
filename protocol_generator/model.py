@@ -63,10 +63,19 @@ class MessageRefType:
 
 
 @dataclass(frozen=True)
-class UnionType:
-    """A tagged union of message variants."""
+class UnionVariant:
+    """A message variant and its explicit wire discriminator."""
 
-    variants: tuple[MessageRefType, ...]
+    tag: int
+    message: MessageRefType
+
+
+@dataclass(frozen=True)
+class UnionType:
+    """A tagged union with an explicit integer discriminator type."""
+
+    tag_type: ScalarType
+    variants: tuple[UnionVariant, ...]
 
 
 FieldType = ScalarType | BytesType | ArrayType | MessageRefType | UnionType

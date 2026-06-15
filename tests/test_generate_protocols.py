@@ -18,7 +18,7 @@ from protocol_generator import (
     load_protocol,
 )
 from protocol_generator.errors import SchemaError
-from protocol_generator.model import BleCharacteristicProperty
+from protocol_generator.model import BleCharacteristicProperty, UnionType
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,6 +98,16 @@ class GenerateProtocolsTest(unittest.TestCase):
             "Starts uploading an audio sample buffer. The checksum is CRC-32/ISO-HDLC "
             "over all little-endian encoded samples.",
         )
+        transfer_control = protocol.messages[3]
+        self.assertEqual(len(transfer_control.fields), 1)
+        command_type = transfer_control.fields[0].type
+        self.assertIsInstance(command_type, UnionType)
+        assert isinstance(command_type, UnionType)
+        self.assertEqual(command_type.tag_type.name, "uint8")
+        self.assertEqual(
+            [(variant.tag, variant.message.name) for variant in command_type.variants],
+            [(0, "transfer_start"), (1, "transfer_commit"), (2, "transfer_abort")],
+        )
 
     def test_generates_dart_and_c_outputs(self) -> None:
         """The generator should emit Dart, C header, and C source files."""
@@ -139,6 +149,16 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn("ProtocolBleCharacteristicProperty", dart_library)
             self.assertIn("export 'src/audio_response_protocol.dart';", dart_library)
             self.assertIn("class AudioResponseTransferControl", dart_output)
+            self.assertIn("sealed class AudioResponseTransferControlCommand", dart_output)
+            self.assertIn(
+                "class AudioResponseTransferStart implements AudioResponseTransferControlCommand",
+                dart_output,
+            )
+            self.assertIn(
+                "factory AudioResponseTransferControl.start(AudioResponseTransferStart command)",
+                dart_output,
+            )
+            self.assertNotIn("required this.type", dart_output)
             self.assertIn("class AudioResponseTransferChunk", dart_output)
             self.assertIn("class AudioResponseTransferStatus", dart_output)
             self.assertIn(
@@ -166,6 +186,11 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertNotIn("class ProtocolWriter", dart_output)
             self.assertIn("class ProtocolWriter", dart_runtime)
             self.assertIn("audio_response_transfer_control_encode", c_header)
+            self.assertIn("AUDIO_RESPONSE_TRANSFER_CONTROL_START = 0", c_header)
+            self.assertIn("audio_response_transfer_control_from_start", c_header)
+            self.assertIn("audio_response_transfer_control_set_command_start", c_header)
+            self.assertIn("audio_response_transfer_control_dispatch", c_header)
+            self.assertIn("audio_response_transfer_control_handler_t", c_header)
             self.assertIn("audio_response_transfer_chunk_encode", c_header)
             self.assertIn("audio_response_transfer_status_encode", c_header)
             self.assertIn('#include "protocol_runtime.h"', c_header)
@@ -213,6 +238,86 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn('"src/audio_response_protocol.c"', c_cmake)
             self.assertIn("add_library(OpenEarable::Protocols ALIAS", c_cmake)
             self.assertIn("target_compile_features(open_earable_protocols PUBLIC c_std_99)", c_cmake)
+
+    def test_rejects_implicit_or_out_of_range_union_tags(self) -> None:
+        """Tagged unions must declare stable tags that fit their wire type."""
+
+        implicit_schema = """\
+protocol: invalid
+version: 1
+messages:
+  first:
+    fields: []
+  second:
+    fields: []
+  container:
+    fields:
+      - name: type
+        type: uint8
+      - name: value
+        type: first | second
+"""
+        out_of_range_schema = """\
+protocol: invalid
+version: 1
+messages:
+  first:
+    fields: []
+  container:
+    fields:
+      - name: value
+        type: union
+        tag_type: uint8
+        variants:
+          256: first
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            schema_path = pathlib.Path(temp_dir) / "protocol.yml"
+            schema_path.write_text(implicit_schema)
+            with self.assertRaisesRegex(SchemaError, "unsupported field type"):
+                load_protocol(schema_path)
+
+            schema_path.write_text(out_of_range_schema)
+            with self.assertRaisesRegex(SchemaError, "does not fit uint8"):
+                load_protocol(schema_path)
+
+    def test_generates_typed_api_for_embedded_union(self) -> None:
+        """C unions with sibling fields should receive typed setters and dispatch."""
+
+        schema = """\
+protocol: events
+version: 1
+messages:
+  started:
+    fields: []
+  stopped:
+    fields: []
+  event:
+    fields:
+      - name: sequence
+        type: uint16
+      - name: payload
+        type: union
+        tag_type: uint8
+        variants:
+          3: started
+          7: stopped
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            schema_path = root / "schemas/events/protocol.yml"
+            schema_path.parent.mkdir(parents=True)
+            schema_path.write_text(schema)
+
+            generate(root / "schemas", root / "generated")
+
+            header = (root / "generated/c/include/events_protocol.h").read_text()
+            source = (root / "generated/c/src/events_protocol.c").read_text()
+            self.assertIn("events_event_set_payload_started", header)
+            self.assertIn("events_event_dispatch", header)
+            self.assertNotIn("events_event_from_started", header)
+            self.assertIn("EVENTS_EVENT_STARTED = 3", header)
+            self.assertIn("case EVENTS_EVENT_STARTED:", source)
 
     def test_can_select_language_strategy(self) -> None:
         """The generator should only run selected language strategies."""

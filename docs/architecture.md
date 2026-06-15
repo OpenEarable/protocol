@@ -64,8 +64,9 @@ the public include directory through `OpenEarable::Protocols`.
 
 All generated codecs use little-endian byte order. Integer fields use their
 declared fixed width. `float` and `double` use IEEE-754 binary32 and binary64
-respectively. Integer fields may control dynamic lengths and union
-discriminators; floating-point fields may not.
+respectively. Integer fields may control dynamic lengths. Tagged unions own an
+explicit integer discriminator type and stable numeric tags; floating-point
+discriminators are not supported.
 
 ## Generated Documentation
 

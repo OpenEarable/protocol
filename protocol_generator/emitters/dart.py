@@ -369,6 +369,7 @@ class _DartRenderer:
         ]
         if self.protocol.ble is not None:
             parts.append(self._ble_uuid_constants())
+        parts.append(self._union_interfaces())
         for message in self.protocol.messages:
             parts.append(self._message(message))
         return "".join(parts)
@@ -434,14 +435,21 @@ class _DartRenderer:
             f"{pascal_case(message.name)} message for the {self.protocol.name} protocol.",
         )
         ctor_params = ", ".join(f"required this.{field.name}" for field in message.fields)
-        declarations = "\n".join(f"  {self._dart_type(field.type)} {field.name};" for field in message.fields)
+        declarations = "\n".join(
+            f"  {self._dart_field_type(message, field)} {field.name};"
+            for field in message.fields
+        )
         read_lines = self._read_lines(message)
         write_lines = self._write_lines(message)
+        union_factories = self._union_factories(message)
+        interfaces = self._implemented_union_interfaces(message)
+        implements = f" implements {', '.join(interfaces)}" if interfaces else ""
         return (
             f"{documentation}\n"
-            f"class {class_name} {{\n"
+            f"class {class_name}{implements} {{\n"
             f"  /// Creates a {class_name} value.\n"
             f"  {class_name}({{{ctor_params}}});\n\n"
+            f"{union_factories}"
             f"{declarations}\n\n"
             f"  /// Decodes a complete {class_name} value from [bytes].\n"
             f"  factory {class_name}.fromBytes(Uint8List bytes) {{\n"
@@ -469,7 +477,10 @@ class _DartRenderer:
     def _class_name(self, message_name: str) -> str:
         return f"{self.prefix}{pascal_case(message_name)}"
 
-    def _dart_type(self, field_type: FieldType) -> str:
+    def _dart_field_type(self, message: Message, field: Field) -> str:
+        """Return the public Dart declaration type for a message field."""
+
+        field_type = field.type
         if isinstance(field_type, ScalarType):
             return f"final {DART_SCALAR_TYPES[field_type.name]}"
         if isinstance(field_type, BytesType):
@@ -479,17 +490,16 @@ class _DartRenderer:
         if isinstance(field_type, MessageRefType):
             return f"final {self._class_name(field_type.name)}"
         if isinstance(field_type, UnionType):
-            variant_types = ", ".join(self._class_name(variant.name) for variant in field_type.variants)
-            return f"final Object /* {variant_types} */"
+            return f"final {self._union_interface_name(message, field)}"
         raise AssertionError(field_type)
 
     def _read_lines(self, message: Message) -> str:
         lines: list[str] = []
         for field in message.fields:
-            lines.extend(self._read_field(field))
+            lines.extend(self._read_field(message, field))
         return _indent("\n".join(lines), 4)
 
-    def _read_field(self, field: Field) -> list[str]:
+    def _read_field(self, message: Message, field: Field) -> list[str]:
         field_type = field.type
         if isinstance(field_type, ScalarType):
             return [f"final {field.name} = reader.{DART_CODEC_METHODS[field_type.name]}();"]
@@ -506,19 +516,27 @@ class _DartRenderer:
         if isinstance(field_type, MessageRefType):
             return [f"final {field.name} = {self._class_name(field_type.name)}._read(reader);"]
         if isinstance(field_type, UnionType):
-            lines = [f"final Object {field.name};", "switch (type) {"]
-            for index, variant in enumerate(field_type.variants):
+            discriminator = f"{field.name}Type"
+            interface_name = self._union_interface_name(message, field)
+            lines = [
+                f"final {discriminator} = reader.{DART_CODEC_METHODS[field_type.tag_type.name]}();",
+                f"final {interface_name} {field.name};",
+                f"switch ({discriminator}) {{",
+            ]
+            for variant in field_type.variants:
                 lines.extend(
                     [
-                        f"  case {index}:",
-                        f"    {field.name} = {self._class_name(variant.name)}._read(reader);",
+                        f"  case {variant.tag}:",
+                        f"    {field.name} = "
+                        f"{self._class_name(variant.message.name)}._read(reader);",
                         "    break;",
                     ]
                 )
             lines.extend(
                 [
                     "  default:",
-                    "    throw ProtocolFormatException('unknown union discriminator $type');",
+                    f"    throw ProtocolFormatException("
+                    f"'unknown union discriminator ${{{discriminator}}}');",
                     "}",
                 ]
             )
@@ -555,18 +573,16 @@ class _DartRenderer:
             return [f"{field.name}._write(writer);"]
         if isinstance(field_type, UnionType):
             lines: list[str] = []
-            for index, variant in enumerate(field_type.variants):
-                class_name = self._class_name(variant.name)
+            for variant in field_type.variants:
+                class_name = self._class_name(variant.message.name)
                 lines.extend(
                     [
                         f"if ({field.name} is {class_name}) {{",
-                        f"    if (type != {index}) {{",
-                        f"      throw const ProtocolFormatException('union discriminator does not match payload type');",
-                        "    }",
-                        f"    ({field.name} as {class_name})._write(writer);",
-                        "    return;",
+                        f"  writer.{DART_CODEC_METHODS[field_type.tag_type.name]}({variant.tag});",
+                        f"  ({field.name} as {class_name})._write(writer);",
+                        "  return;",
                         "}",
-                        ]
+                    ]
                 )
             lines.extend(
                 [
@@ -578,3 +594,69 @@ class _DartRenderer:
 
     def _ctor_args(self, message: Message) -> str:
         return ", ".join(f"{field.name}: {field.name}" for field in message.fields)
+
+    def _union_factories(self, message: Message) -> str:
+        """Render inferred-discriminator factories for a single-union message."""
+
+        if len(message.fields) != 1 or not isinstance(message.fields[0].type, UnionType):
+            return ""
+        field = message.fields[0]
+        field_type = field.type
+        assert isinstance(field_type, UnionType)
+        class_name = self._class_name(message.name)
+        lines: list[str] = []
+        for variant in field_type.variants:
+            variant_name = variant.message.name
+            short_name = self._short_variant_name(message, variant_name)
+            variant_class = self._class_name(variant_name)
+            lines.extend(
+                [
+                    f"  /// Creates a {class_name} containing {variant_class}.",
+                    f"  factory {class_name}.{lower_camel_case(short_name)}"
+                    f"({variant_class} command) =>",
+                    f"      {class_name}({field.name}: command);",
+                    "",
+                ]
+            )
+        return "\n".join(lines) + "\n"
+
+    def _union_interfaces(self) -> str:
+        """Render sealed marker interfaces used by Dart tagged unions."""
+
+        lines: list[str] = []
+        for message in self.protocol.messages:
+            for field in message.fields:
+                if isinstance(field.type, UnionType):
+                    name = self._union_interface_name(message, field)
+                    lines.extend(
+                        [
+                            f"/// Payload accepted by {self._class_name(message.name)}.{field.name}.",
+                            f"sealed class {name} {{}}",
+                            "",
+                        ]
+                    )
+        return "\n".join(lines) + ("\n" if lines else "")
+
+    def _implemented_union_interfaces(self, message: Message) -> tuple[str, ...]:
+        """Return marker interfaces implemented by a union variant message."""
+
+        interfaces: list[str] = []
+        for owner in self.protocol.messages:
+            for field in owner.fields:
+                if not isinstance(field.type, UnionType):
+                    continue
+                if any(variant.message.name == message.name for variant in field.type.variants):
+                    interfaces.append(self._union_interface_name(owner, field))
+        return tuple(interfaces)
+
+    def _union_interface_name(self, message: Message, field: Field) -> str:
+        """Return the Dart marker interface name for a tagged union field."""
+
+        return f"{self._class_name(message.name)}{pascal_case(field.name)}"
+
+    @staticmethod
+    def _short_variant_name(message: Message, variant_name: str) -> str:
+        """Remove a shared message prefix from a variant for concise APIs."""
+
+        prefix = f"{message.name.removesuffix('_control')}_"
+        return variant_name.removeprefix(prefix)

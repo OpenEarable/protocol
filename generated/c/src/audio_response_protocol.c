@@ -127,20 +127,87 @@ protocol_status_t audio_response_transfer_abort_decode(audio_response_transfer_a
   return PROTOCOL_OK;
 }
 
+void audio_response_transfer_control_set_command_start(audio_response_transfer_control_t *message, audio_response_transfer_start_t command) {
+  if (message == NULL) {
+    return;
+  }
+  message->type = AUDIO_RESPONSE_TRANSFER_CONTROL_START;
+  message->command.transfer_start = command;
+}
+
+audio_response_transfer_control_t audio_response_transfer_control_from_start(audio_response_transfer_start_t command) {
+  audio_response_transfer_control_t message = {0};
+  audio_response_transfer_control_set_command_start(&message, command);
+  return message;
+}
+
+void audio_response_transfer_control_set_command_commit(audio_response_transfer_control_t *message, audio_response_transfer_commit_t command) {
+  if (message == NULL) {
+    return;
+  }
+  message->type = AUDIO_RESPONSE_TRANSFER_CONTROL_COMMIT;
+  message->command.transfer_commit = command;
+}
+
+audio_response_transfer_control_t audio_response_transfer_control_from_commit(audio_response_transfer_commit_t command) {
+  audio_response_transfer_control_t message = {0};
+  audio_response_transfer_control_set_command_commit(&message, command);
+  return message;
+}
+
+void audio_response_transfer_control_set_command_abort(audio_response_transfer_control_t *message, audio_response_transfer_abort_t command) {
+  if (message == NULL) {
+    return;
+  }
+  message->type = AUDIO_RESPONSE_TRANSFER_CONTROL_ABORT;
+  message->command.transfer_abort = command;
+}
+
+audio_response_transfer_control_t audio_response_transfer_control_from_abort(audio_response_transfer_abort_t command) {
+  audio_response_transfer_control_t message = {0};
+  audio_response_transfer_control_set_command_abort(&message, command);
+  return message;
+}
+
+protocol_status_t audio_response_transfer_control_dispatch(const audio_response_transfer_control_t *message, const audio_response_transfer_control_handler_t *handler, void *context) {
+  if (message == NULL || handler == NULL) {
+    return PROTOCOL_ERROR_INVALID_DATA;
+  }
+  switch (message->type) {
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_START:
+    if (handler->start == NULL) {
+      return PROTOCOL_ERROR_INVALID_DATA;
+    }
+    return handler->start(context, &message->command.transfer_start);
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_COMMIT:
+    if (handler->commit == NULL) {
+      return PROTOCOL_ERROR_INVALID_DATA;
+    }
+    return handler->commit(context, &message->command.transfer_commit);
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_ABORT:
+    if (handler->abort == NULL) {
+      return PROTOCOL_ERROR_INVALID_DATA;
+    }
+    return handler->abort(context, &message->command.transfer_abort);
+  default:
+    return PROTOCOL_ERROR_INVALID_DATA;
+  }
+}
+
 static protocol_status_t audio_response_transfer_control_write(protocol_writer_t *writer, const audio_response_transfer_control_t *message) {
   protocol_status_t status;
   status = protocol_write_uint8(writer, message->type);
   if (status != PROTOCOL_OK) return status;
   switch (message->type) {
-  case 0:
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_START:
     status = audio_response_transfer_start_write(writer, &message->command.transfer_start);
     if (status != PROTOCOL_OK) return status;
     break;
-  case 1:
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_COMMIT:
     status = audio_response_transfer_commit_write(writer, &message->command.transfer_commit);
     if (status != PROTOCOL_OK) return status;
     break;
-  case 2:
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_ABORT:
     status = audio_response_transfer_abort_write(writer, &message->command.transfer_abort);
     if (status != PROTOCOL_OK) return status;
     break;
@@ -152,18 +219,20 @@ static protocol_status_t audio_response_transfer_control_write(protocol_writer_t
 
 static protocol_status_t audio_response_transfer_control_read(protocol_reader_t *reader, audio_response_transfer_control_t *message) {
   protocol_status_t status;
-  status = protocol_read_uint8(reader, &message->type);
+  uint8_t raw_type;
+  status = protocol_read_uint8(reader, &raw_type);
   if (status != PROTOCOL_OK) return status;
+  message->type = (audio_response_transfer_control_type_t)raw_type;
   switch (message->type) {
-  case 0:
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_START:
     status = audio_response_transfer_start_read(reader, &message->command.transfer_start);
     if (status != PROTOCOL_OK) return status;
     break;
-  case 1:
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_COMMIT:
     status = audio_response_transfer_commit_read(reader, &message->command.transfer_commit);
     if (status != PROTOCOL_OK) return status;
     break;
-  case 2:
+  case AUDIO_RESPONSE_TRANSFER_CONTROL_ABORT:
     status = audio_response_transfer_abort_read(reader, &message->command.transfer_abort);
     if (status != PROTOCOL_OK) return status;
     break;

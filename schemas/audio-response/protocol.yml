@@ -50,10 +50,13 @@ messages:
   transfer_control:
     description: A tagged transfer control command. Type 0 starts, type 1 commits, and type 2 aborts a transfer.
     fields:
-      - name: type
-        type: uint8
       - name: command
-        type: transfer_start | transfer_commit | transfer_abort
+        type: union
+        tag_type: uint8
+        variants:
+          0: transfer_start
+          1: transfer_commit
+          2: transfer_abort
 
   transfer_chunk:
     description: Uploads a contiguous section of an audio sample buffer.

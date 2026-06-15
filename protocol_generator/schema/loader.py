@@ -23,6 +23,7 @@ from protocol_generator.model import (
     Protocol,
     ScalarType,
     UnionType,
+    UnionVariant,
 )
 from protocol_generator.schema.yaml_subset import parse_yaml_subset
 
@@ -57,7 +58,7 @@ def load_protocol(path: pathlib.Path) -> Protocol:
             if not isinstance(raw_field, dict):
                 raise SchemaError(f"{path}: fields in {message_name} must be maps")
             field_name = _required_str(raw_field, "name")
-            field_type = parse_type(_required_str(raw_field, "type"), message_names)
+            field_type = _load_field_type(path, message_name, field_name, raw_field, message_names)
             _validate_field_type(path, message_name, field_name, field_type, known_integer_fields)
             fields.append(Field(field_name, field_type))
             if isinstance(field_type, ScalarType) and field_type.name in INTEGER_SCALAR_TYPE_NAMES:
@@ -176,15 +177,6 @@ def _required_int(mapping: dict[str, Any], key: str) -> int:
 def parse_type(raw_type: str, message_names: set[str]) -> FieldType:
     """Parse a schema field type expression."""
 
-    union_parts = [part.strip() for part in raw_type.split("|")]
-    if len(union_parts) > 1:
-        variants = []
-        for part in union_parts:
-            if part not in message_names:
-                raise SchemaError(f"union variant '{part}' is not a message")
-            variants.append(MessageRefType(part))
-        return UnionType(tuple(variants))
-
     array_match = re.fullmatch(r"([A-Za-z0-9_]+)\[([A-Za-z_][A-Za-z0-9_]*)\]", raw_type)
     if array_match:
         item_type, length_field = array_match.groups()
@@ -201,6 +193,75 @@ def parse_type(raw_type: str, message_names: set[str]) -> FieldType:
     raise SchemaError(f"unsupported field type '{raw_type}'")
 
 
+def _load_field_type(
+    path: pathlib.Path,
+    message_name: str,
+    field_name: str,
+    raw_field: dict[str, Any],
+    message_names: set[str],
+) -> FieldType:
+    """Load a scalar type expression or an explicit tagged union definition."""
+
+    raw_type = _required_str(raw_field, "type")
+    if raw_type != "union":
+        return parse_type(raw_type, message_names)
+
+    tag_type_name = _required_str(raw_field, "tag_type")
+    if tag_type_name not in INTEGER_SCALAR_TYPE_NAMES:
+        raise SchemaError(
+            f"{path}: {message_name}.{field_name} union tag_type must be an integer scalar"
+        )
+    raw_variants = raw_field.get("variants")
+    if not isinstance(raw_variants, dict) or not raw_variants:
+        raise SchemaError(
+            f"{path}: {message_name}.{field_name} union variants must be a non-empty map"
+        )
+
+    variants: list[UnionVariant] = []
+    variant_names: set[str] = set()
+    for raw_tag, variant_name in raw_variants.items():
+        try:
+            tag = int(raw_tag)
+        except (TypeError, ValueError) as exc:
+            raise SchemaError(
+                f"{path}: {message_name}.{field_name} union tag '{raw_tag}' must be an integer"
+            ) from exc
+        if str(tag) != str(raw_tag):
+            raise SchemaError(
+                f"{path}: {message_name}.{field_name} union tag '{raw_tag}' must be an integer"
+            )
+        if not isinstance(variant_name, str) or variant_name not in message_names:
+            raise SchemaError(
+                f"{path}: {message_name}.{field_name} union variant '{variant_name}' is not a message"
+            )
+        if variant_name in variant_names:
+            raise SchemaError(
+                f"{path}: {message_name}.{field_name} contains duplicate union variant '{variant_name}'"
+            )
+        _validate_union_tag_range(path, message_name, field_name, tag_type_name, tag)
+        variant_names.add(variant_name)
+        variants.append(UnionVariant(tag=tag, message=MessageRefType(variant_name)))
+    return UnionType(tag_type=ScalarType(tag_type_name), variants=tuple(variants))
+
+
+def _validate_union_tag_range(
+    path: pathlib.Path,
+    message_name: str,
+    field_name: str,
+    tag_type_name: str,
+    tag: int,
+) -> None:
+    """Validate that a union discriminator fits its declared wire type."""
+
+    bits = int(re.search(r"\d+", tag_type_name).group())
+    minimum = -(1 << (bits - 1)) if tag_type_name.startswith("int") else 0
+    maximum = (1 << (bits - 1)) - 1 if tag_type_name.startswith("int") else (1 << bits) - 1
+    if not minimum <= tag <= maximum:
+        raise SchemaError(
+            f"{path}: {message_name}.{field_name} union tag {tag} does not fit {tag_type_name}"
+        )
+
+
 def _validate_field_type(
     path: pathlib.Path,
     message_name: str,
@@ -212,9 +273,4 @@ def _validate_field_type(
         raise SchemaError(
             f"{path}: {message_name}.{field_name} references length field "
             f"'{field_type.length_field}' before it is defined"
-        )
-    if isinstance(field_type, UnionType) and "type" not in known_integer_fields:
-        raise SchemaError(
-            f"{path}: {message_name}.{field_name} is a union and requires a preceding "
-            "'type' integer discriminator field"
         )

@@ -69,6 +69,24 @@ protocol_status_t status = audio_response_transfer_chunk_encode(
 );
 ```
 
+Tagged union messages should be built with their generated typed constructors:
+
+```c
+audio_response_transfer_start_t start = {
+    .transfer_id = 1,
+    .total_samples = 4,
+    .sampling_rate = 16000,
+    .checksum = 0x12345678,
+};
+audio_response_transfer_control_t control =
+    audio_response_transfer_control_from_start(start);
+```
+
+For decoded union messages, define an
+`audio_response_transfer_control_handler_t` and call
+`audio_response_transfer_control_dispatch`. The generated dispatcher validates
+the discriminator and invokes the correctly typed callback.
+
 ## Local protocol development
 
 For local development, point the same `add_subdirectory` call at the local

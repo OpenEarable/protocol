@@ -46,13 +46,19 @@ struct audio_response_transfer_abort_t {
 };
 
 
+typedef enum audio_response_transfer_control_type_t {
+  AUDIO_RESPONSE_TRANSFER_CONTROL_START = 0,
+  AUDIO_RESPONSE_TRANSFER_CONTROL_COMMIT = 1,
+  AUDIO_RESPONSE_TRANSFER_CONTROL_ABORT = 2,
+} audio_response_transfer_control_type_t;
+
 /**
  * A tagged transfer control command. Type 0 starts, type 1 commits, and type 2 aborts a
  * transfer.
  */
 typedef struct audio_response_transfer_control_t audio_response_transfer_control_t;
 struct audio_response_transfer_control_t {
-  uint8_t type;
+  audio_response_transfer_control_type_t type;
   union {
     audio_response_transfer_start_t transfer_start;
     audio_response_transfer_commit_t transfer_commit;
@@ -102,6 +108,28 @@ struct audio_response_result_t {
   uint16_t *response;
 };
 
+
+/** Typed handlers used to dispatch transfer_control.command. */
+typedef struct audio_response_transfer_control_handler_t {
+  protocol_status_t (*start)(void *context, const audio_response_transfer_start_t *command);
+  protocol_status_t (*commit)(void *context, const audio_response_transfer_commit_t *command);
+  protocol_status_t (*abort)(void *context, const audio_response_transfer_abort_t *command);
+} audio_response_transfer_control_handler_t;
+
+/** Set transfer_control.command to transfer_start. */
+void audio_response_transfer_control_set_command_start(audio_response_transfer_control_t *message, audio_response_transfer_start_t command);
+/** Build a transfer_control message containing transfer_start. */
+audio_response_transfer_control_t audio_response_transfer_control_from_start(audio_response_transfer_start_t command);
+/** Set transfer_control.command to transfer_commit. */
+void audio_response_transfer_control_set_command_commit(audio_response_transfer_control_t *message, audio_response_transfer_commit_t command);
+/** Build a transfer_control message containing transfer_commit. */
+audio_response_transfer_control_t audio_response_transfer_control_from_commit(audio_response_transfer_commit_t command);
+/** Set transfer_control.command to transfer_abort. */
+void audio_response_transfer_control_set_command_abort(audio_response_transfer_control_t *message, audio_response_transfer_abort_t command);
+/** Build a transfer_control message containing transfer_abort. */
+audio_response_transfer_control_t audio_response_transfer_control_from_abort(audio_response_transfer_abort_t command);
+/** Dispatch transfer_control.command to its typed handler. */
+protocol_status_t audio_response_transfer_control_dispatch(const audio_response_transfer_control_t *message, const audio_response_transfer_control_handler_t *handler, void *context);
 
 /**
  * Encode a binary representation of this message. Starts uploading an audio sample buffer.
