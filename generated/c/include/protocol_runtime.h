@@ -1,6 +1,5 @@
 // Generated shared protocol runtime. Do not edit by hand.
-#ifndef PROTOCOL_RUNTIME_H
-#define PROTOCOL_RUNTIME_H
+#pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -60,4 +59,3 @@ protocol_status_t protocol_read_bytes(protocol_reader_t *reader, uint8_t *value,
 }
 #endif
 
-#endif /* PROTOCOL_RUNTIME_H */

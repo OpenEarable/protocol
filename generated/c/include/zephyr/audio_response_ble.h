@@ -1,6 +1,5 @@
 // Generated from schemas/audio-response/protocol.yml. Do not edit by hand.
-#ifndef AUDIO_RESPONSE_ZEPHYR_BLE_H
-#define AUDIO_RESPONSE_ZEPHYR_BLE_H
+#pragma once
 
 #include "audio_response_protocol.h"
 #include <zephyr/bluetooth/gatt.h>
@@ -27,5 +26,3 @@
 #define AUDIO_RESPONSE_ZEPHYR_RESULT_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(BT_UUID_128_ENCODE(0x7467b39c, 0x9043, 0x4453, 0xbc5c, 0x2d8e8b10680a))
 #define AUDIO_RESPONSE_ZEPHYR_RESULT_CHARACTERISTIC_PROPERTIES (BT_GATT_CHRC_NOTIFY)
 #define AUDIO_RESPONSE_ZEPHYR_RESULT_CHARACTERISTIC_PERMISSIONS (BT_GATT_PERM_NONE)
-
-#endif /* AUDIO_RESPONSE_ZEPHYR_BLE_H */

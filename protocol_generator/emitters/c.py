@@ -138,8 +138,7 @@ class _CRuntimeRenderer:
         header = textwrap.dedent(
             f"""\
             // Generated shared protocol runtime. Do not edit by hand.
-            #ifndef PROTOCOL_RUNTIME_H
-            #define PROTOCOL_RUNTIME_H
+            #pragma once
 
             #include <stdbool.h>
             #include <stddef.h>
@@ -184,7 +183,6 @@ class _CRuntimeRenderer:
             }}
             #endif
 
-            #endif /* PROTOCOL_RUNTIME_H */
             """
         )
         return header.replace("__SCALAR_DECLARATIONS__", declarations)
@@ -255,7 +253,7 @@ class _CRenderer:
         guard = f"{self.prefix.upper()}_PROTOCOL_H"
         parts = [
             generated_banner(self.schema_path),
-            f"#ifndef {guard}\n#define {guard}\n\n",
+            f"#pragma once\n\n",
             '#include "protocol_runtime.h"\n\n',
         ]
         if self.protocol.ble is not None:
@@ -289,7 +287,6 @@ class _CRenderer:
                 "const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);\n\n"
             )
         parts.append("#ifdef __cplusplus\n}\n#endif\n\n")
-        parts.append(f"#endif /* {guard} */\n")
         return "".join(parts)
 
     def _ble_uuid_macros(self) -> str:
@@ -321,8 +318,7 @@ class _CRenderer:
         guard = f"{macro_prefix}_ZEPHYR_BLE_H"
         lines = [
             generated_banner(self.schema_path).rstrip(),
-            f"#ifndef {guard}",
-            f"#define {guard}",
+            f"#pragma once",
             "",
             f'#include "{protocol_header_name}"',
             "#include <zephyr/bluetooth/gatt.h>",
@@ -346,7 +342,7 @@ class _CRenderer:
                     f"({permissions})",
                 ]
             )
-        lines.extend(["", f"#endif /* {guard} */", ""])
+        lines.extend([""])
         return "\n".join(lines)
 
     def emit_source(self, header_name: str) -> str:

@@ -1,6 +1,5 @@
 // Generated from schemas/audio-response/protocol.yml. Do not edit by hand.
-#ifndef AUDIO_RESPONSE_PROTOCOL_H
-#define AUDIO_RESPONSE_PROTOCOL_H
+#pragma once
 
 #include "protocol_runtime.h"
 
@@ -196,4 +195,3 @@ protocol_status_t audio_response_result_decode(audio_response_result_t *message,
 }
 #endif
 
-#endif /* AUDIO_RESPONSE_PROTOCOL_H */
