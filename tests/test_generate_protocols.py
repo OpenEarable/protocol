@@ -49,7 +49,7 @@ class GenerateProtocolsTest(unittest.TestCase):
         protocol = load_protocol(pathlib.Path("schemas/audio-response/protocol.yml"))
 
         self.assertEqual(protocol.name, "audio-response")
-        self.assertEqual(protocol.version, 2)
+        self.assertEqual(protocol.version, 1)
         self.assertIsNotNone(protocol.ble)
         assert protocol.ble is not None
         self.assertEqual(protocol.ble.service_uuid, "7467b395-9043-4453-bc5c-2d8e8b10680a")
