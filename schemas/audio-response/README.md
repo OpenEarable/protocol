@@ -23,6 +23,10 @@ characteristics.
 Write a `transfer_control` containing `transfer_abort` to release an incomplete
 transfer.
 
+`config.points` defines how many requested measurement frequencies follow in
+`config.frequencies`. Set `points` to `0` and send an empty `frequencies` array
+to let the firmware choose its implementation-defined default points.
+
 Transfer control discriminator values are:
 
 | Value | Command |
