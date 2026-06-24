@@ -62,6 +62,26 @@ cd generated/dart
 dart pub publish --dry-run
 ```
 
+## Release Workflow
+
+Use the **Release Dart package** GitHub Actions workflow to publish a new
+generated Dart package version. Start the workflow manually from the GitHub UI
+and provide the SemVer package version without a leading `v`, for example
+`0.2.0`.
+
+The workflow regenerates all protocol bindings, releases the notes currently
+under `schemas/CHANGELOG.md`'s `## [Unreleased]` heading, updates the Dart
+package version and changelog, validates the generated package with
+`dart pub publish --dry-run`, commits the release files, and creates a tag named
+`open_earable_protocols-v<version>`.
+
+Configure a repository secret named `RELEASE_TOKEN` with permission to push
+commits and tags before using the workflow. The default GitHub Actions token
+does not trigger the follow-up tag workflow that publishes the package to
+pub.dev. Configure pub.dev automated publishing for the
+`open_earable_protocols-v{{version}}` tag pattern so the tag workflow can
+publish with GitHub OIDC.
+
 ## Schema Format
 
 Each protocol schema defines metadata and ordered message fields:

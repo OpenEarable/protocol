@@ -1,27 +1,26 @@
-name: Generate protocol bindings
+name: Verify protocol bindings
 
 on:
   push:
     branches:
       - "**"
+  pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: generate-protocols-${{ github.ref }}
+  group: verify-protocols-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  generate:
-    name: Generate and commit bindings
+  verify:
+    name: Verify generated bindings
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,18 +33,5 @@ jobs:
       - name: Generate protocol bindings
         run: python -m protocol_generator
 
-      - name: Commit generated changes
-        env:
-          BRANCH_NAME: ${{ github.ref_name }}
-        run: |
-          git add generated
-
-          if git diff --cached --quiet; then
-            echo "Generated files are already up to date."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(generated): regenerate protocol bindings"
-          git push origin "HEAD:${BRANCH_NAME}"
+      - name: Verify generated files are current
+        run: git diff --exit-code generated

@@ -1,0 +1,114 @@
+name: Release Dart package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to release, without a leading v."
+        required: true
+        type: string
+      branch:
+        description: "Branch that receives the release commit and tag."
+        required: true
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-dart-package-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Prepare release commit and tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "${RELEASE_TOKEN}" ]; then
+            echo "Set a RELEASE_TOKEN secret with permission to push commits and tags."
+            echo "The default GITHUB_TOKEN does not trigger the tag publishing workflow."
+            exit 1
+          fi
+
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Configure Git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate requested version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python -c "import os; from tools.prepare_dart_release import validate_version; validate_version(os.environ['VERSION'])"
+
+      - name: Fail when release tag already exists
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          TAG="open_earable_protocols-v${VERSION}"
+          if git rev-parse "${TAG}" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists."
+            exit 1
+          fi
+
+      - name: Generate protocol bindings
+        run: python -m protocol_generator
+
+      - name: Prepare release metadata
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python tools/prepare_dart_release.py "${VERSION}"
+
+      - name: Run generator tests
+        run: python -m unittest discover -s tests
+
+      - name: Install Dart dependencies
+        working-directory: generated/dart
+        run: dart pub get
+
+      - name: Validate Dart package
+        working-directory: generated/dart
+        run: dart pub publish --dry-run
+
+      - name: Commit release changes
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git add generated schemas/CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No release changes were produced."
+            exit 1
+          fi
+          git commit -m "chore(release): prepare open_earable_protocols ${VERSION}"
+
+      - name: Create release tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: git tag "open_earable_protocols-v${VERSION}"
+
+      - name: Push release commit and tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git push origin "HEAD:${{ inputs.branch }}"
+          git push origin "open_earable_protocols-v${VERSION}"
