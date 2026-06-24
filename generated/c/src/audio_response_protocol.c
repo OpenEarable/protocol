@@ -378,6 +378,12 @@ static protocol_status_t audio_response_config_write(protocol_writer_t *writer, 
   if (status != PROTOCOL_OK) return status;
   status = protocol_write_float(writer, message->volume);
   if (status != PROTOCOL_OK) return status;
+  status = protocol_write_uint8(writer, message->points);
+  if (status != PROTOCOL_OK) return status;
+  for (size_t index = 0; index < message->points; ++index) {
+    status = protocol_write_uint16(writer, message->frequencies[index]);
+    if (status != PROTOCOL_OK) return status;
+  }
   return PROTOCOL_OK;
 }
 
@@ -389,6 +395,12 @@ static protocol_status_t audio_response_config_read(protocol_reader_t *reader, a
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_float(reader, &message->volume);
   if (status != PROTOCOL_OK) return status;
+  status = protocol_read_uint8(reader, &message->points);
+  if (status != PROTOCOL_OK) return status;
+  for (size_t index = 0; index < message->points; ++index) {
+    status = protocol_read_uint16(reader, &message->frequencies[index]);
+    if (status != PROTOCOL_OK) return status;
+  }
   return PROTOCOL_OK;
 }
 

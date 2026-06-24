@@ -87,12 +87,18 @@ struct audio_response_transfer_status_t {
 };
 
 
-/** Starts an audio response measurement using a committed audio sample buffer. */
+/**
+ * Starts an audio response measurement using a committed audio sample buffer. Set points
+ * to zero and leave frequencies empty to let the device choose its default measurement
+ * points.
+ */
 typedef struct audio_response_config_t audio_response_config_t;
 struct audio_response_config_t {
   uint8_t id;
   uint16_t transfer_id;
   float volume;
+  uint8_t points;
+  uint16_t *frequencies;
 };
 
 
@@ -199,12 +205,14 @@ protocol_status_t audio_response_transfer_status_decode(audio_response_transfer_
 
 /**
  * Encode a binary representation of this message. Starts an audio response measurement
- * using a committed audio sample buffer.
+ * using a committed audio sample buffer. Set points to zero and leave frequencies empty to
+ * let the device choose its default measurement points.
  */
 protocol_status_t audio_response_config_encode(const audio_response_config_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
  * Decode a binary representation into this message. Starts an audio response measurement
- * using a committed audio sample buffer.
+ * using a committed audio sample buffer. Set points to zero and leave frequencies empty to
+ * let the device choose its default measurement points.
  */
 protocol_status_t audio_response_config_decode(audio_response_config_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 

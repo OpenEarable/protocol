@@ -353,14 +353,18 @@ class AudioResponseTransferStatus {
   }
 }
 
-/// Starts an audio response measurement using a committed audio sample buffer.
+/// Starts an audio response measurement using a committed audio sample buffer. Set points
+/// to zero and leave frequencies empty to let the device choose its default measurement
+/// points.
 class AudioResponseConfig {
   /// Creates a AudioResponseConfig value.
-  AudioResponseConfig({required this.id, required this.transfer_id, required this.volume});
+  AudioResponseConfig({required this.id, required this.transfer_id, required this.volume, required this.points, required this.frequencies});
 
   final int id;
   final int transfer_id;
   final double volume;
+  final int points;
+  final List<int> frequencies;
 
   /// Decodes a complete AudioResponseConfig value from [bytes].
   factory AudioResponseConfig.fromBytes(Uint8List bytes) {
@@ -374,7 +378,12 @@ class AudioResponseConfig {
     final id = reader.uint8();
     final transfer_id = reader.uint16();
     final volume = reader.float32();
-    return AudioResponseConfig(id: id, transfer_id: transfer_id, volume: volume);
+    final points = reader.uint8();
+    final frequencies = List<int>.generate(
+      points,
+      (_) => reader.uint16(),
+    );
+    return AudioResponseConfig(id: id, transfer_id: transfer_id, volume: volume, points: points, frequencies: frequencies);
   }
 
   /// Encodes this value to the protocol binary representation.
@@ -388,6 +397,13 @@ class AudioResponseConfig {
     writer.uint8(id);
     writer.uint16(transfer_id);
     writer.float32(volume);
+    writer.uint8(points);
+    if (frequencies.length != points) {
+      throw ProtocolFormatException('frequencies length does not match points');
+    }
+    for (final value in frequencies) {
+      writer.uint16(value);
+    }
   }
 }
 
