@@ -1,6 +1,6 @@
 name: open_earable_protocols
 description: Generated binary protocol bindings for OpenEarable devices.
-version: 0.0.1
+version: 0.0.2
 repository: https://github.com/OpenEarable/protocol
 issue_tracker: https://github.com/OpenEarable/protocol/issues
 topics:
