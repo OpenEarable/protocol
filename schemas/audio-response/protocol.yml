@@ -83,7 +83,7 @@ messages:
         type: uint16
 
   config:
-    description: Starts an audio response measurement using a committed audio sample buffer.
+    description: Starts an audio response measurement using a committed audio sample buffer. Set points to zero and leave frequencies empty to let the device choose its default measurement points.
     fields:
       - name: id
         type: uint8
@@ -91,6 +91,10 @@ messages:
         type: uint16
       - name: volume
         type: float
+      - name: points
+        type: uint8
+      - name: frequencies
+        type: uint16[points]
 
   result:
     description: A message containing audio response data. Each point represents a frequency and its corresponding response value.
