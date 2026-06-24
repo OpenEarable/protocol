@@ -1,6 +1,5 @@
 ## [Unreleased]
 
-## [0.0.2] - 2026-06-24
+## [0.0.2]
 
 * created audio-response protocol
-

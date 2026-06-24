@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import pathlib
 import re
 
@@ -46,7 +45,6 @@ def update_pubspec_version(pubspec_path: pathlib.Path, version: str) -> None:
 def release_unreleased_section(
     changelog_path: pathlib.Path,
     version: str,
-    release_date: dt.date,
 ) -> str:
     """Release a Keep-a-Changelog style ``[Unreleased]`` section.
 
@@ -65,7 +63,7 @@ def release_unreleased_section(
     if not notes:
         raise ReleasePreparationError(f"{changelog_path} has no unreleased notes to publish.")
 
-    released_heading = f"## [{version}] - {release_date.isoformat()}"
+    released_heading = f"## [{version}]"
     replacement = f"## [Unreleased]\n\n{released_heading}\n\n{notes}\n\n"
     updated = content[: match.start()] + replacement + content[section_end:].lstrip()
     changelog_path.write_text(updated)
@@ -75,7 +73,6 @@ def release_unreleased_section(
 def ensure_dart_changelog_section(
     changelog_path: pathlib.Path,
     version: str,
-    release_date: dt.date,
     notes: str,
 ) -> None:
     """Ensure the Dart package changelog contains the released schema notes."""
@@ -84,7 +81,7 @@ def ensure_dart_changelog_section(
     if re.search(rf"^##\s+\[?{re.escape(version)}\]?", content, flags=re.MULTILINE):
         return
 
-    released_section = f"## {version} - {release_date.isoformat()}\n\n{notes}\n\n"
+    released_section = f"## {version}\n\n{notes}\n\n"
     changelog_path.write_text(released_section + content.lstrip())
 
 
@@ -93,12 +90,6 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version", help="Dart package version to release, without a leading v.")
-    parser.add_argument(
-        "--release-date",
-        type=dt.date.fromisoformat,
-        default=dt.date.today(),
-        help="Release date in YYYY-MM-DD format. Defaults to today.",
-    )
     parser.add_argument(
         "--repo-root",
         type=pathlib.Path,
@@ -117,13 +108,11 @@ def main() -> int:
     schema_notes = release_unreleased_section(
         repo_root / "schemas" / "CHANGELOG.md",
         version,
-        args.release_date,
     )
     update_pubspec_version(repo_root / "generated" / "dart" / "pubspec.yaml", version)
     ensure_dart_changelog_section(
         repo_root / "generated" / "dart" / "CHANGELOG.md",
         version,
-        args.release_date,
         schema_notes,
     )
     return 0

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import pathlib
 import tempfile
 import unittest
@@ -27,23 +26,22 @@ class PrepareDartReleaseTest(unittest.TestCase):
             changelog_path.write_text(
                 "## [Unreleased]\n\n"
                 "- Added transfer status payload.\n\n"
-                "## [0.1.0] - 2026-01-01\n\n"
+                "## [0.1.0]\n\n"
                 "- Initial release.\n"
             )
 
             notes = release_unreleased_section(
                 changelog_path,
                 "0.2.0",
-                dt.date(2026, 6, 24),
             )
 
             self.assertEqual(notes, "- Added transfer status payload.")
             self.assertEqual(
                 changelog_path.read_text(),
                 "## [Unreleased]\n\n"
-                "## [0.2.0] - 2026-06-24\n\n"
+                "## [0.2.0]\n\n"
                 "- Added transfer status payload.\n\n"
-                "## [0.1.0] - 2026-01-01\n\n"
+                "## [0.1.0]\n\n"
                 "- Initial release.\n",
             )
 
@@ -55,7 +53,7 @@ class PrepareDartReleaseTest(unittest.TestCase):
             changelog_path.write_text("## [Unreleased]\n\n")
 
             with self.assertRaises(ReleasePreparationError):
-                release_unreleased_section(changelog_path, "0.2.0", dt.date(2026, 6, 24))
+                release_unreleased_section(changelog_path, "0.2.0")
 
     def test_updates_pubspec_version(self) -> None:
         """The generated Dart package version should be replaced exactly once."""
@@ -81,19 +79,17 @@ class PrepareDartReleaseTest(unittest.TestCase):
             ensure_dart_changelog_section(
                 changelog_path,
                 "0.2.0",
-                dt.date(2026, 6, 24),
                 "- Added transfer status payload.",
             )
             ensure_dart_changelog_section(
                 changelog_path,
                 "0.2.0",
-                dt.date(2026, 6, 24),
                 "- Added transfer status payload.",
             )
 
             self.assertEqual(
                 changelog_path.read_text(),
-                "## 0.2.0 - 2026-06-24\n\n"
+                "## 0.2.0\n\n"
                 "- Added transfer status payload.\n\n"
                 "## 0.1.0\n\n"
                 "- Initial release.\n",
