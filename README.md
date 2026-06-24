@@ -85,6 +85,20 @@ Message descriptions are optional but recommended. The generator emits them as
 Dart documentation comments and C Doxygen comments. When omitted, it generates
 a stable description from the message and protocol names.
 
+## Protocol Compatibility
+
+Protocol changes must remain backwards compatible. Existing devices,
+applications, and generated bindings must continue to understand payloads that
+were valid before the change. In practice, this means existing message names,
+field order, field types, BLE UUIDs, and tagged-union discriminator values are
+stable once released.
+
+Prefer additive changes. New messages, new fields at explicitly compatible
+extension points, new tagged-union variants with unused discriminator values,
+and new BLE characteristics are safer than changing existing wire contracts.
+Never reuse a removed discriminator value or characteristic UUID for a different
+meaning.
+
 Optional BLE transport metadata is retained in generated APIs:
 
 ```yaml

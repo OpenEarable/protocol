@@ -5,11 +5,10 @@ uploaded signed 16-bit PCM sample buffer.
 
 ## BLE Transfer
 
-Protocol version 2 transfers audio independently from starting a measurement so
-buffers are not limited to a single GATT write:
-
-Version 2 uses new characteristic UUIDs. Version 1 config and result
-characteristics must not be interpreted as version 2 transfer characteristics.
+Protocol version 1 transfers audio independently from starting a measurement so
+buffers are not limited to a single GATT write. The transfer characteristics use
+dedicated UUIDs and must not be confused with the config or result
+characteristics.
 
 1. Write a `transfer_control` containing `transfer_start`.
 2. Wait for a successful `transfer_status` notification.
