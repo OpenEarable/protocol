@@ -18,7 +18,7 @@ from protocol_generator import (
     load_protocol,
 )
 from protocol_generator.errors import SchemaError
-from protocol_generator.model import BleCharacteristicProperty, UnionType
+from protocol_generator.model import ArrayType, BleCharacteristicProperty, UnionType
 
 
 @dataclasses.dataclass(frozen=True)
@@ -108,6 +108,16 @@ class GenerateProtocolsTest(unittest.TestCase):
             [(variant.tag, variant.message.name) for variant in command_type.variants],
             [(0, "transfer_start"), (1, "transfer_commit"), (2, "transfer_abort")],
         )
+        config = protocol.messages[6]
+        self.assertEqual(
+            [field.name for field in config.fields],
+            ["id", "transfer_id", "volume", "points", "frequencies"],
+        )
+        frequencies_type = config.fields[4].type
+        self.assertIsInstance(frequencies_type, ArrayType)
+        assert isinstance(frequencies_type, ArrayType)
+        self.assertEqual(frequencies_type.length_field, "points")
+        self.assertEqual(frequencies_type.item_type.name, "uint16")
 
     def test_generates_dart_and_c_outputs(self) -> None:
         """The generator should emit Dart, C header, and C source files."""
@@ -162,6 +172,14 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn("class AudioResponseTransferChunk", dart_output)
             self.assertIn("class AudioResponseTransferStatus", dart_output)
             self.assertIn(
+                "AudioResponseConfig({required this.id, required this.transfer_id, "
+                "required this.volume, required this.points, required this.frequencies});",
+                dart_output,
+            )
+            self.assertIn("final List<int> frequencies;", dart_output)
+            self.assertIn("writer.uint8(points);", dart_output)
+            self.assertIn("frequencies length does not match points", dart_output)
+            self.assertIn(
                 "/// Starts uploading an audio sample buffer.",
                 dart_output,
             )
@@ -193,6 +211,10 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn("audio_response_transfer_control_handler_t", c_header)
             self.assertIn("audio_response_transfer_chunk_encode", c_header)
             self.assertIn("audio_response_transfer_status_encode", c_header)
+            self.assertIn("uint8_t points;", c_header)
+            self.assertIn("uint16_t *frequencies;", c_header)
+            self.assertIn("protocol_write_uint8(writer, message->points)", c_source)
+            self.assertIn("message->frequencies[index]", c_source)
             self.assertIn('#include "protocol_runtime.h"', c_header)
             self.assertIn(
                 "/** Uploads a contiguous section of an audio sample buffer. */",
