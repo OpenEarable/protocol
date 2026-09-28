@@ -21,13 +21,10 @@ package "Command envelope" {
     class set_acl_connection_policy {
         persist : uint8
     }
-    class set_acl_radio_preferences {
+    class set_acl_radio_policy {
         persist : uint8
     }
-    class set_lc3_preferences {
-        persist : uint8
-    }
-    class set_iso_qos_preferences {
+    class set_unicast_server_qos_preferences {
         persist : uint8
     }
     class get_configuration {
@@ -48,6 +45,12 @@ package "ACL policy union" {
         peripheral_latency : uint16
         supervision_timeout_ms : uint32
     }
+    class preferred_range_acl_policy {
+        minimum_interval_us : uint32
+        maximum_interval_us : uint32
+        peripheral_latency : uint16
+        supervision_timeout_ms : uint32
+    }
     class adaptive_linear_acl_policy {
         minimum_interval_us : uint32
         maximum_interval_us : uint32
@@ -58,10 +61,28 @@ package "ACL policy union" {
     }
 }
 
-package "Preference sections" {
-    class acl_radio_preferences
-    class lc3_preferences
-    class iso_qos_preferences
+package "Device-owned policy" {
+    class acl_radio_policy {
+        policy_tag : uint8
+    }
+    class automatic_acl_radio_policy
+    class preferred_acl_radio_policy {
+        transmit_phy_mask : uint8
+        receive_phy_mask : uint8
+        transmit_max_data_octets : uint16
+        transmit_max_time_us : uint16
+    }
+    class unicast_server_qos_preferences {
+        direction_mask : uint8
+        unframed_supported : uint8
+        preferred_phy_mask : uint8
+        preferred_retransmission_number : uint8
+        maximum_transport_latency_ms : uint16
+        minimum_presentation_delay_us : uint32
+        maximum_presentation_delay_us : uint32
+        preferred_minimum_presentation_delay_us : uint32
+        preferred_maximum_presentation_delay_us : uint32
+    }
 }
 
 package "Response envelope" {
@@ -71,9 +92,8 @@ package "Response envelope" {
     }
     class command_result
     class configured_acl_connection_policy
-    class configured_acl_radio_preferences
-    class configured_lc3_preferences
-    class configured_iso_qos_preferences
+    class configured_acl_radio_policy
+    class configured_unicast_server_qos_preferences
 }
 
 package "Observation" {
@@ -93,26 +113,26 @@ package "Observation" {
 
 command --> configuration_command : encodes
 configuration_command *-- set_acl_connection_policy : tag 0
-configuration_command *-- set_acl_radio_preferences : tag 1
-configuration_command *-- set_lc3_preferences : tag 2
-configuration_command *-- set_iso_qos_preferences : tag 3
-configuration_command *-- get_configuration : tag 4
-configuration_command *-- restore_defaults : tag 5
+configuration_command *-- set_acl_radio_policy : tag 1
+configuration_command *-- set_unicast_server_qos_preferences : tag 2
+configuration_command *-- get_configuration : tag 3
+configuration_command *-- restore_defaults : tag 4
 
 set_acl_connection_policy *-- acl_connection_policy
 acl_connection_policy *-- controller_default_acl_policy : tag 0
 acl_connection_policy *-- fixed_acl_policy : tag 1
-acl_connection_policy *-- adaptive_linear_acl_policy : tag 2
-set_acl_radio_preferences *-- acl_radio_preferences
-set_lc3_preferences *-- lc3_preferences
-set_iso_qos_preferences *-- iso_qos_preferences
+acl_connection_policy *-- preferred_range_acl_policy : tag 2
+acl_connection_policy *-- adaptive_linear_acl_policy : tag 3
+set_acl_radio_policy *-- acl_radio_policy
+acl_radio_policy *-- automatic_acl_radio_policy : tag 0
+acl_radio_policy *-- preferred_acl_radio_policy : tag 1
+set_unicast_server_qos_preferences *-- unicast_server_qos_preferences
 
 response --> configuration_response : encodes
 configuration_response *-- command_result : tag 0
 configuration_response *-- configured_acl_connection_policy : tag 1
-configuration_response *-- configured_acl_radio_preferences : tag 2
-configuration_response *-- configured_lc3_preferences : tag 3
-configuration_response *-- configured_iso_qos_preferences : tag 4
+configuration_response *-- configured_acl_radio_policy : tag 2
+configuration_response *-- configured_unicast_server_qos_preferences : tag 3
 
 runtime_state_characteristic --> runtime_state_message : encodes
 capabilities_characteristic --> capabilities_message : encodes

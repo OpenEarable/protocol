@@ -1,0 +1,33 @@
+@startuml
+title Custom policy and standard LE Audio ownership
+
+skinparam monochrome true
+skinparam sequenceMessageAlign center
+hide footbox
+
+actor "Control application" as PolicyClient
+participant "Custom policy service" as Policy
+participant "OpenEarable Unicast Server" as Server
+actor "LE Audio Unicast Client" as AudioClient
+
+PolicyClient -> Policy: Set ACL policy or server QoS preferences
+Policy --> PolicyClient: Correlated command result
+
+AudioClient -> Server: Discover PACS
+Server --> AudioClient: Published LC3 capabilities
+AudioClient -> Server: ASCS Config Codec\n(selected supported LC3 configuration)
+Server --> AudioClient: Codec Configured ASE\n(configured codec + server QoS preferences)
+AudioClient -> AudioClient: Configure CIG/CIS in local controller
+AudioClient -> Server: ASCS Config QoS\n(actual SDU interval, framing, PHY,\nMax SDU, RTN, latency, presentation delay)
+Server --> AudioClient: QoS Configured ASE
+AudioClient -> Server: ASCS Enable / Start
+
+Server -> Policy: Publish effective ACL and\nstandard-negotiated stream state
+Policy --> PolicyClient: runtime_state notification
+
+note over PolicyClient,AudioClient
+The custom service controls device-owned policy only.
+PACS and ASCS remain authoritative for codec capabilities,
+codec selection, actual CIS QoS, and stream lifecycle.
+end note
+@enduml

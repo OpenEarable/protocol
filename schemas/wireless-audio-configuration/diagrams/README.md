@@ -12,6 +12,8 @@ that is already implemented in the firmware.
   malformed write and a valid but rejected command.
 - [`runtime-state-sequence.puml`](runtime-state-sequence.puml) shows how ACL,
   codec, QoS, streaming, and underrun events produce runtime-state snapshots.
+- [`le-audio-ownership-sequence.puml`](le-audio-ownership-sequence.puml) shows
+  the boundary between this custom policy service and PACS/ASCS negotiation.
 - [`protocol-model.puml`](protocol-model.puml) shows the main message envelopes,
   tagged unions, configuration sections, and GATT characteristics.
 - [`adaptive-linear-policy.puml`](adaptive-linear-policy.puml) shows the state

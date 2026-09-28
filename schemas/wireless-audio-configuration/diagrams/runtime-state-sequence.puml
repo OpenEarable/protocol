@@ -24,12 +24,12 @@ Host -> State: Effective TX/RX PHY and lengths
 State -> Gatt: runtime_state\n(validity bits 0..2)
 Gatt -> Client: Notify link state
 
-Peer -> Host: ASE codec configuration
+Peer -> Host: Standard ASCS Config Codec
 Host -> State: Negotiated LC3 configuration
 State -> Gatt: runtime_state\n(validity bits 0..3)
 Gatt -> Client: Notify codec-configured state
 
-Peer -> Host: CIS QoS configuration
+Peer -> Host: Standard ASCS Config QoS
 Host -> State: Negotiated ISO QoS and presentation delay
 State -> Gatt: runtime_state\n(validity bits 0..5)
 Gatt -> Client: Notify QoS-configured state
@@ -51,5 +51,6 @@ end
 note over State,Client
 Each notification identifies a session-local connection and stream.
 The validity mask says which groups of fields may be interpreted.
+Negotiated LC3 and ISO QoS fields are observations, not custom settings.
 end note
 @enduml

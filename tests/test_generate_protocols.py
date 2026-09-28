@@ -160,7 +160,8 @@ class GenerateProtocolsTest(unittest.TestCase):
             [
                 (0, "controller_default_acl_policy"),
                 (1, "fixed_acl_policy"),
-                (2, "adaptive_linear_acl_policy"),
+                (2, "preferred_range_acl_policy"),
+                (3, "adaptive_linear_acl_policy"),
             ],
         )
 
@@ -171,11 +172,10 @@ class GenerateProtocolsTest(unittest.TestCase):
             [(variant.tag, variant.message.name) for variant in command_type.variants],
             [
                 (0, "set_acl_connection_policy"),
-                (1, "set_acl_radio_preferences"),
-                (2, "set_lc3_preferences"),
-                (3, "set_iso_qos_preferences"),
-                (4, "get_configuration"),
-                (5, "restore_defaults"),
+                (1, "set_acl_radio_policy"),
+                (2, "set_unicast_server_qos_preferences"),
+                (3, "get_configuration"),
+                (4, "restore_defaults"),
             ],
         )
 
@@ -187,9 +187,8 @@ class GenerateProtocolsTest(unittest.TestCase):
             [
                 (0, "command_result"),
                 (1, "configured_acl_connection_policy"),
-                (2, "configured_acl_radio_preferences"),
-                (3, "configured_lc3_preferences"),
-                (4, "configured_iso_qos_preferences"),
+                (2, "configured_acl_radio_policy"),
+                (3, "configured_unicast_server_qos_preferences"),
             ],
         )
         self.assertEqual(
@@ -222,10 +221,10 @@ class GenerateProtocolsTest(unittest.TestCase):
         def message_size(message_name: str) -> int:
             return sum(field_size(field.type) for field in messages[message_name].fields)
 
-        self.assertEqual(message_size("configuration_command"), 40)
-        self.assertEqual(message_size("configuration_response"), 40)
+        self.assertEqual(message_size("configuration_command"), 35)
+        self.assertEqual(message_size("configuration_response"), 35)
         self.assertEqual(message_size("runtime_state"), 65)
-        self.assertEqual(message_size("capabilities"), 64)
+        self.assertEqual(message_size("capabilities"), 61)
 
     def test_generates_dart_and_c_outputs(self) -> None:
         """The generator should emit Dart, C header, and C source files."""

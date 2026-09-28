@@ -1,6 +1,7 @@
 ## [Unreleased]
 
-* created wireless-audio-configuration protocol
+* created wireless-audio-configuration protocol for device-owned ACL and
+  Unicast Server policies plus read-only negotiated runtime state
 
 ## [0.0.2]
 

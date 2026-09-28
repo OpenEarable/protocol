@@ -40,6 +40,19 @@ struct wireless_audio_configuration_fixed_acl_policy_t {
 
 
 /**
+ * Requests an ACL connection interval within a preferred range together with peripheral
+ * latency and supervision timeout.
+ */
+typedef struct wireless_audio_configuration_preferred_range_acl_policy_t wireless_audio_configuration_preferred_range_acl_policy_t;
+struct wireless_audio_configuration_preferred_range_acl_policy_t {
+  uint32_t minimum_interval_us;
+  uint32_t maximum_interval_us;
+  uint16_t peripheral_latency;
+  uint32_t supervision_timeout_ms;
+};
+
+
+/**
  * Increases the ACL interval by a fixed step after an audio underrun episode and decreases
  * it periodically while audio is stable.
  */
@@ -59,12 +72,13 @@ struct wireless_audio_configuration_adaptive_linear_acl_policy_t {
 typedef enum wireless_audio_configuration_acl_connection_policy_type_t {
   WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_CONTROLLER_DEFAULT_ACL_POLICY = 0,
   WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_FIXED_ACL_POLICY = 1,
-  WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_ADAPTIVE_LINEAR_ACL_POLICY = 2,
+  WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_PREFERRED_RANGE_ACL_POLICY = 2,
+  WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_ADAPTIVE_LINEAR_ACL_POLICY = 3,
 } wireless_audio_configuration_acl_connection_policy_type_t;
 
 /**
- * A tagged ACL connection policy. Type 0 uses controller defaults, type 1 requests a fixed
- * interval, and type 2 uses linear underrun adaptation.
+ * A tagged local ACL request policy; the peer or controller may negotiate different
+ * effective parameters.
  */
 typedef struct wireless_audio_configuration_acl_connection_policy_t wireless_audio_configuration_acl_connection_policy_t;
 struct wireless_audio_configuration_acl_connection_policy_t {
@@ -72,18 +86,25 @@ struct wireless_audio_configuration_acl_connection_policy_t {
   union {
     wireless_audio_configuration_controller_default_acl_policy_t controller_default_acl_policy;
     wireless_audio_configuration_fixed_acl_policy_t fixed_acl_policy;
+    wireless_audio_configuration_preferred_range_acl_policy_t preferred_range_acl_policy;
     wireless_audio_configuration_adaptive_linear_acl_policy_t adaptive_linear_acl_policy;
   } policy;
 };
 
 
+/** Leaves ACL PHY and data length selection to the Bluetooth stack; reserved must be zero. */
+typedef struct wireless_audio_configuration_automatic_acl_radio_policy_t wireless_audio_configuration_automatic_acl_radio_policy_t;
+struct wireless_audio_configuration_automatic_acl_radio_policy_t {
+  uint8_t reserved;
+};
+
+
 /**
- * Optional ACL PHY and data length preferences selected by fields_present bits defined by
- * the protocol specification.
+ * Requests ACL PHY and transmit data length preferences; zero values leave the
+ * corresponding setting to the Bluetooth stack.
  */
-typedef struct wireless_audio_configuration_acl_radio_preferences_t wireless_audio_configuration_acl_radio_preferences_t;
-struct wireless_audio_configuration_acl_radio_preferences_t {
-  uint16_t fields_present;
+typedef struct wireless_audio_configuration_preferred_acl_radio_policy_t wireless_audio_configuration_preferred_acl_radio_policy_t;
+struct wireless_audio_configuration_preferred_acl_radio_policy_t {
   uint8_t transmit_phy_mask;
   uint8_t receive_phy_mask;
   uint16_t transmit_max_data_octets;
@@ -91,37 +112,36 @@ struct wireless_audio_configuration_acl_radio_preferences_t {
 };
 
 
+typedef enum wireless_audio_configuration_acl_radio_policy_type_t {
+  WIRELESS_AUDIO_CONFIGURATION_ACL_RADIO_POLICY_AUTOMATIC_ACL_RADIO_POLICY = 0,
+  WIRELESS_AUDIO_CONFIGURATION_ACL_RADIO_POLICY_PREFERRED_ACL_RADIO_POLICY = 1,
+} wireless_audio_configuration_acl_radio_policy_type_t;
+
 /**
- * Optional LC3 codec preferences for one or both audio directions, selected by
- * fields_present bits.
+ * A tagged local ACL radio policy. Type 0 is automatic and type 1 requests explicit
+ * preferences.
  */
-typedef struct wireless_audio_configuration_lc3_preferences_t wireless_audio_configuration_lc3_preferences_t;
-struct wireless_audio_configuration_lc3_preferences_t {
-  uint16_t fields_present;
-  uint8_t direction_mask;
-  uint32_t sampling_frequency_hz;
-  uint16_t frame_duration_us;
-  uint16_t octets_per_frame;
-  uint8_t frame_blocks_per_sdu;
-  uint32_t channel_allocation;
+typedef struct wireless_audio_configuration_acl_radio_policy_t wireless_audio_configuration_acl_radio_policy_t;
+struct wireless_audio_configuration_acl_radio_policy_t {
+  wireless_audio_configuration_acl_radio_policy_type_t type;
+  union {
+    wireless_audio_configuration_automatic_acl_radio_policy_t automatic_acl_radio_policy;
+    wireless_audio_configuration_preferred_acl_radio_policy_t preferred_acl_radio_policy;
+  } policy;
 };
 
 
 /**
- * Optional Connected Isochronous Stream QoS preferences for one or both audio directions,
- * selected by fields_present bits.
+ * Local preferences returned by the Unicast Server after a standard ASCS Config Codec
+ * operation; these do not configure the CIS.
  */
-typedef struct wireless_audio_configuration_iso_qos_preferences_t wireless_audio_configuration_iso_qos_preferences_t;
-struct wireless_audio_configuration_iso_qos_preferences_t {
-  uint32_t fields_present;
+typedef struct wireless_audio_configuration_unicast_server_qos_preferences_t wireless_audio_configuration_unicast_server_qos_preferences_t;
+struct wireless_audio_configuration_unicast_server_qos_preferences_t {
   uint8_t direction_mask;
-  uint32_t sdu_interval_us;
-  uint8_t framing;
-  uint8_t phy_mask;
-  uint8_t retransmission_number;
-  uint16_t maximum_sdu_octets;
+  uint8_t unframed_supported;
+  uint8_t preferred_phy_mask;
+  uint8_t preferred_retransmission_number;
   uint16_t maximum_transport_latency_ms;
-  uint32_t presentation_delay_us;
   uint32_t minimum_presentation_delay_us;
   uint32_t maximum_presentation_delay_us;
   uint32_t preferred_minimum_presentation_delay_us;
@@ -137,27 +157,25 @@ struct wireless_audio_configuration_set_acl_connection_policy_t {
 };
 
 
-/** Sets ACL PHY and data length preferences and optionally persists them across restarts. */
-typedef struct wireless_audio_configuration_set_acl_radio_preferences_t wireless_audio_configuration_set_acl_radio_preferences_t;
-struct wireless_audio_configuration_set_acl_radio_preferences_t {
+/**
+ * Sets the local ACL PHY and data length request policy and optionally persists it across
+ * restarts.
+ */
+typedef struct wireless_audio_configuration_set_acl_radio_policy_t wireless_audio_configuration_set_acl_radio_policy_t;
+struct wireless_audio_configuration_set_acl_radio_policy_t {
   uint8_t persist;
-  wireless_audio_configuration_acl_radio_preferences_t preferences;
+  wireless_audio_configuration_acl_radio_policy_t policy;
 };
 
 
-/** Sets LC3 codec preferences and optionally persists them across restarts. */
-typedef struct wireless_audio_configuration_set_lc3_preferences_t wireless_audio_configuration_set_lc3_preferences_t;
-struct wireless_audio_configuration_set_lc3_preferences_t {
+/**
+ * Sets preferences returned during future ASCS codec configuration operations and
+ * optionally persists them across restarts.
+ */
+typedef struct wireless_audio_configuration_set_unicast_server_qos_preferences_t wireless_audio_configuration_set_unicast_server_qos_preferences_t;
+struct wireless_audio_configuration_set_unicast_server_qos_preferences_t {
   uint8_t persist;
-  wireless_audio_configuration_lc3_preferences_t preferences;
-};
-
-
-/** Sets CIS QoS preferences and optionally persists them across restarts. */
-typedef struct wireless_audio_configuration_set_iso_qos_preferences_t wireless_audio_configuration_set_iso_qos_preferences_t;
-struct wireless_audio_configuration_set_iso_qos_preferences_t {
-  uint8_t persist;
-  wireless_audio_configuration_iso_qos_preferences_t preferences;
+  wireless_audio_configuration_unicast_server_qos_preferences_t preferences;
 };
 
 
@@ -180,11 +198,10 @@ struct wireless_audio_configuration_restore_defaults_t {
 
 typedef enum wireless_audio_configuration_configuration_command_type_t {
   WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_ACL_CONNECTION_POLICY = 0,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_ACL_RADIO_PREFERENCES = 1,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_LC3_PREFERENCES = 2,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_ISO_QOS_PREFERENCES = 3,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_GET_CONFIGURATION = 4,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_RESTORE_DEFAULTS = 5,
+  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_ACL_RADIO_POLICY = 1,
+  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_UNICAST_SERVER_QOS_PREFERENCES = 2,
+  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_GET_CONFIGURATION = 3,
+  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_RESTORE_DEFAULTS = 4,
 } wireless_audio_configuration_configuration_command_type_t;
 
 /** A correlated wireless audio configuration command with a stable tagged operation. */
@@ -194,9 +211,8 @@ struct wireless_audio_configuration_configuration_command_t {
   wireless_audio_configuration_configuration_command_type_t type;
   union {
     wireless_audio_configuration_set_acl_connection_policy_t set_acl_connection_policy;
-    wireless_audio_configuration_set_acl_radio_preferences_t set_acl_radio_preferences;
-    wireless_audio_configuration_set_lc3_preferences_t set_lc3_preferences;
-    wireless_audio_configuration_set_iso_qos_preferences_t set_iso_qos_preferences;
+    wireless_audio_configuration_set_acl_radio_policy_t set_acl_radio_policy;
+    wireless_audio_configuration_set_unicast_server_qos_preferences_t set_unicast_server_qos_preferences;
     wireless_audio_configuration_get_configuration_t get_configuration;
     wireless_audio_configuration_restore_defaults_t restore_defaults;
   } operation;
@@ -211,27 +227,22 @@ struct wireless_audio_configuration_configured_acl_connection_policy_t {
 };
 
 
-/** Reports configured ACL radio preferences and whether they are persistent. */
-typedef struct wireless_audio_configuration_configured_acl_radio_preferences_t wireless_audio_configuration_configured_acl_radio_preferences_t;
-struct wireless_audio_configuration_configured_acl_radio_preferences_t {
+/** Reports the configured local ACL radio policy and whether it is persistent. */
+typedef struct wireless_audio_configuration_configured_acl_radio_policy_t wireless_audio_configuration_configured_acl_radio_policy_t;
+struct wireless_audio_configuration_configured_acl_radio_policy_t {
   uint8_t persisted;
-  wireless_audio_configuration_acl_radio_preferences_t preferences;
+  wireless_audio_configuration_acl_radio_policy_t policy;
 };
 
 
-/** Reports configured LC3 preferences and whether they are persistent. */
-typedef struct wireless_audio_configuration_configured_lc3_preferences_t wireless_audio_configuration_configured_lc3_preferences_t;
-struct wireless_audio_configuration_configured_lc3_preferences_t {
+/**
+ * Reports the preferences returned by the server during ASCS codec configuration and
+ * whether they are persistent.
+ */
+typedef struct wireless_audio_configuration_configured_unicast_server_qos_preferences_t wireless_audio_configuration_configured_unicast_server_qos_preferences_t;
+struct wireless_audio_configuration_configured_unicast_server_qos_preferences_t {
   uint8_t persisted;
-  wireless_audio_configuration_lc3_preferences_t preferences;
-};
-
-
-/** Reports configured CIS QoS preferences and whether they are persistent. */
-typedef struct wireless_audio_configuration_configured_iso_qos_preferences_t wireless_audio_configuration_configured_iso_qos_preferences_t;
-struct wireless_audio_configuration_configured_iso_qos_preferences_t {
-  uint8_t persisted;
-  wireless_audio_configuration_iso_qos_preferences_t preferences;
+  wireless_audio_configuration_unicast_server_qos_preferences_t preferences;
 };
 
 
@@ -251,14 +262,13 @@ struct wireless_audio_configuration_command_result_t {
 typedef enum wireless_audio_configuration_configuration_response_type_t {
   WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_COMMAND_RESULT = 0,
   WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_ACL_CONNECTION_POLICY = 1,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_ACL_RADIO_PREFERENCES = 2,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_LC3_PREFERENCES = 3,
-  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_ISO_QOS_PREFERENCES = 4,
+  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_ACL_RADIO_POLICY = 2,
+  WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_UNICAST_SERVER_QOS_PREFERENCES = 3,
 } wireless_audio_configuration_configuration_response_type_t;
 
 /**
  * A response correlated to a configuration command. Type 0 is a command result and types 1
- * through 4 report one configuration section.
+ * through 3 report one policy section.
  */
 typedef struct wireless_audio_configuration_configuration_response_t wireless_audio_configuration_configuration_response_t;
 struct wireless_audio_configuration_configuration_response_t {
@@ -267,16 +277,16 @@ struct wireless_audio_configuration_configuration_response_t {
   union {
     wireless_audio_configuration_command_result_t command_result;
     wireless_audio_configuration_configured_acl_connection_policy_t configured_acl_connection_policy;
-    wireless_audio_configuration_configured_acl_radio_preferences_t configured_acl_radio_preferences;
-    wireless_audio_configuration_configured_lc3_preferences_t configured_lc3_preferences;
-    wireless_audio_configuration_configured_iso_qos_preferences_t configured_iso_qos_preferences;
+    wireless_audio_configuration_configured_acl_radio_policy_t configured_acl_radio_policy;
+    wireless_audio_configuration_configured_unicast_server_qos_preferences_t configured_unicast_server_qos_preferences;
   } payload;
 };
 
 
 /**
- * Reports effective ACL parameters and negotiated LE Audio configuration for one
- * connection and stream; fields without a corresponding validity flag are zero.
+ * Read-only observation of effective ACL parameters and the LC3 and ISO QoS values
+ * negotiated through PACS and ASCS for one connection and stream; fields without a
+ * corresponding validity flag are zero.
  */
 typedef struct wireless_audio_configuration_runtime_state_t wireless_audio_configuration_runtime_state_t;
 struct wireless_audio_configuration_runtime_state_t {
@@ -311,8 +321,8 @@ struct wireless_audio_configuration_runtime_state_t {
 
 
 /**
- * Reports supported configuration sections, policy types, radio features, and value ranges
- * for this firmware build and controller.
+ * Reports supported custom policy sections and value ranges for this firmware build and
+ * controller; standard LC3 capabilities are exposed through PACS.
  */
 typedef struct wireless_audio_configuration_capabilities_t wireless_audio_configuration_capabilities_t;
 struct wireless_audio_configuration_capabilities_t {
@@ -327,15 +337,13 @@ struct wireless_audio_configuration_capabilities_t {
   uint16_t maximum_acl_peripheral_latency;
   uint32_t minimum_acl_supervision_timeout_ms;
   uint32_t maximum_acl_supervision_timeout_ms;
+  uint16_t minimum_acl_data_octets;
   uint16_t maximum_acl_data_octets;
-  uint16_t supported_lc3_sampling_frequency_mask;
-  uint8_t supported_lc3_frame_duration_mask;
-  uint16_t minimum_lc3_octets_per_frame;
-  uint16_t maximum_lc3_octets_per_frame;
-  uint8_t maximum_lc3_frame_blocks_per_sdu;
-  uint8_t maximum_iso_retransmission_number;
-  uint16_t maximum_iso_sdu_octets;
-  uint16_t maximum_iso_transport_latency_ms;
+  uint16_t minimum_acl_data_time_us;
+  uint16_t maximum_acl_data_time_us;
+  uint8_t supported_audio_direction_mask;
+  uint8_t maximum_preferred_retransmission_number;
+  uint16_t maximum_transport_latency_ms;
   uint32_t minimum_presentation_delay_us;
   uint32_t maximum_presentation_delay_us;
   uint32_t feature_flags;
@@ -346,6 +354,7 @@ struct wireless_audio_configuration_capabilities_t {
 typedef struct wireless_audio_configuration_acl_connection_policy_handler_t {
   protocol_status_t (*controller_default_acl_policy)(void *context, const wireless_audio_configuration_controller_default_acl_policy_t *command);
   protocol_status_t (*fixed_acl_policy)(void *context, const wireless_audio_configuration_fixed_acl_policy_t *command);
+  protocol_status_t (*preferred_range_acl_policy)(void *context, const wireless_audio_configuration_preferred_range_acl_policy_t *command);
   protocol_status_t (*adaptive_linear_acl_policy)(void *context, const wireless_audio_configuration_adaptive_linear_acl_policy_t *command);
 } wireless_audio_configuration_acl_connection_policy_handler_t;
 
@@ -357,6 +366,10 @@ wireless_audio_configuration_acl_connection_policy_t wireless_audio_configuratio
 void wireless_audio_configuration_acl_connection_policy_set_policy_fixed_acl_policy(wireless_audio_configuration_acl_connection_policy_t *message, wireless_audio_configuration_fixed_acl_policy_t command);
 /** Build a acl_connection_policy message containing fixed_acl_policy. */
 wireless_audio_configuration_acl_connection_policy_t wireless_audio_configuration_acl_connection_policy_from_fixed_acl_policy(wireless_audio_configuration_fixed_acl_policy_t command);
+/** Set acl_connection_policy.policy to preferred_range_acl_policy. */
+void wireless_audio_configuration_acl_connection_policy_set_policy_preferred_range_acl_policy(wireless_audio_configuration_acl_connection_policy_t *message, wireless_audio_configuration_preferred_range_acl_policy_t command);
+/** Build a acl_connection_policy message containing preferred_range_acl_policy. */
+wireless_audio_configuration_acl_connection_policy_t wireless_audio_configuration_acl_connection_policy_from_preferred_range_acl_policy(wireless_audio_configuration_preferred_range_acl_policy_t command);
 /** Set acl_connection_policy.policy to adaptive_linear_acl_policy. */
 void wireless_audio_configuration_acl_connection_policy_set_policy_adaptive_linear_acl_policy(wireless_audio_configuration_acl_connection_policy_t *message, wireless_audio_configuration_adaptive_linear_acl_policy_t command);
 /** Build a acl_connection_policy message containing adaptive_linear_acl_policy. */
@@ -364,24 +377,38 @@ wireless_audio_configuration_acl_connection_policy_t wireless_audio_configuratio
 /** Dispatch acl_connection_policy.policy to its typed handler. */
 protocol_status_t wireless_audio_configuration_acl_connection_policy_dispatch(const wireless_audio_configuration_acl_connection_policy_t *message, const wireless_audio_configuration_acl_connection_policy_handler_t *handler, void *context);
 
+/** Typed handlers used to dispatch acl_radio_policy.policy. */
+typedef struct wireless_audio_configuration_acl_radio_policy_handler_t {
+  protocol_status_t (*automatic_acl_radio_policy)(void *context, const wireless_audio_configuration_automatic_acl_radio_policy_t *command);
+  protocol_status_t (*preferred_acl_radio_policy)(void *context, const wireless_audio_configuration_preferred_acl_radio_policy_t *command);
+} wireless_audio_configuration_acl_radio_policy_handler_t;
+
+/** Set acl_radio_policy.policy to automatic_acl_radio_policy. */
+void wireless_audio_configuration_acl_radio_policy_set_policy_automatic_acl_radio_policy(wireless_audio_configuration_acl_radio_policy_t *message, wireless_audio_configuration_automatic_acl_radio_policy_t command);
+/** Build a acl_radio_policy message containing automatic_acl_radio_policy. */
+wireless_audio_configuration_acl_radio_policy_t wireless_audio_configuration_acl_radio_policy_from_automatic_acl_radio_policy(wireless_audio_configuration_automatic_acl_radio_policy_t command);
+/** Set acl_radio_policy.policy to preferred_acl_radio_policy. */
+void wireless_audio_configuration_acl_radio_policy_set_policy_preferred_acl_radio_policy(wireless_audio_configuration_acl_radio_policy_t *message, wireless_audio_configuration_preferred_acl_radio_policy_t command);
+/** Build a acl_radio_policy message containing preferred_acl_radio_policy. */
+wireless_audio_configuration_acl_radio_policy_t wireless_audio_configuration_acl_radio_policy_from_preferred_acl_radio_policy(wireless_audio_configuration_preferred_acl_radio_policy_t command);
+/** Dispatch acl_radio_policy.policy to its typed handler. */
+protocol_status_t wireless_audio_configuration_acl_radio_policy_dispatch(const wireless_audio_configuration_acl_radio_policy_t *message, const wireless_audio_configuration_acl_radio_policy_handler_t *handler, void *context);
+
 /** Typed handlers used to dispatch configuration_command.operation. */
 typedef struct wireless_audio_configuration_configuration_command_handler_t {
   protocol_status_t (*set_acl_connection_policy)(void *context, const wireless_audio_configuration_set_acl_connection_policy_t *command);
-  protocol_status_t (*set_acl_radio_preferences)(void *context, const wireless_audio_configuration_set_acl_radio_preferences_t *command);
-  protocol_status_t (*set_lc3_preferences)(void *context, const wireless_audio_configuration_set_lc3_preferences_t *command);
-  protocol_status_t (*set_iso_qos_preferences)(void *context, const wireless_audio_configuration_set_iso_qos_preferences_t *command);
+  protocol_status_t (*set_acl_radio_policy)(void *context, const wireless_audio_configuration_set_acl_radio_policy_t *command);
+  protocol_status_t (*set_unicast_server_qos_preferences)(void *context, const wireless_audio_configuration_set_unicast_server_qos_preferences_t *command);
   protocol_status_t (*get_configuration)(void *context, const wireless_audio_configuration_get_configuration_t *command);
   protocol_status_t (*restore_defaults)(void *context, const wireless_audio_configuration_restore_defaults_t *command);
 } wireless_audio_configuration_configuration_command_handler_t;
 
 /** Set configuration_command.operation to set_acl_connection_policy. */
 void wireless_audio_configuration_configuration_command_set_operation_set_acl_connection_policy(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_set_acl_connection_policy_t command);
-/** Set configuration_command.operation to set_acl_radio_preferences. */
-void wireless_audio_configuration_configuration_command_set_operation_set_acl_radio_preferences(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_set_acl_radio_preferences_t command);
-/** Set configuration_command.operation to set_lc3_preferences. */
-void wireless_audio_configuration_configuration_command_set_operation_set_lc3_preferences(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_set_lc3_preferences_t command);
-/** Set configuration_command.operation to set_iso_qos_preferences. */
-void wireless_audio_configuration_configuration_command_set_operation_set_iso_qos_preferences(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_set_iso_qos_preferences_t command);
+/** Set configuration_command.operation to set_acl_radio_policy. */
+void wireless_audio_configuration_configuration_command_set_operation_set_acl_radio_policy(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_set_acl_radio_policy_t command);
+/** Set configuration_command.operation to set_unicast_server_qos_preferences. */
+void wireless_audio_configuration_configuration_command_set_operation_set_unicast_server_qos_preferences(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_set_unicast_server_qos_preferences_t command);
 /** Set configuration_command.operation to get_configuration. */
 void wireless_audio_configuration_configuration_command_set_operation_get_configuration(wireless_audio_configuration_configuration_command_t *message, wireless_audio_configuration_get_configuration_t command);
 /** Set configuration_command.operation to restore_defaults. */
@@ -393,21 +420,18 @@ protocol_status_t wireless_audio_configuration_configuration_command_dispatch(co
 typedef struct wireless_audio_configuration_configuration_response_handler_t {
   protocol_status_t (*command_result)(void *context, const wireless_audio_configuration_command_result_t *command);
   protocol_status_t (*configured_acl_connection_policy)(void *context, const wireless_audio_configuration_configured_acl_connection_policy_t *command);
-  protocol_status_t (*configured_acl_radio_preferences)(void *context, const wireless_audio_configuration_configured_acl_radio_preferences_t *command);
-  protocol_status_t (*configured_lc3_preferences)(void *context, const wireless_audio_configuration_configured_lc3_preferences_t *command);
-  protocol_status_t (*configured_iso_qos_preferences)(void *context, const wireless_audio_configuration_configured_iso_qos_preferences_t *command);
+  protocol_status_t (*configured_acl_radio_policy)(void *context, const wireless_audio_configuration_configured_acl_radio_policy_t *command);
+  protocol_status_t (*configured_unicast_server_qos_preferences)(void *context, const wireless_audio_configuration_configured_unicast_server_qos_preferences_t *command);
 } wireless_audio_configuration_configuration_response_handler_t;
 
 /** Set configuration_response.payload to command_result. */
 void wireless_audio_configuration_configuration_response_set_payload_command_result(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_command_result_t command);
 /** Set configuration_response.payload to configured_acl_connection_policy. */
 void wireless_audio_configuration_configuration_response_set_payload_configured_acl_connection_policy(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_configured_acl_connection_policy_t command);
-/** Set configuration_response.payload to configured_acl_radio_preferences. */
-void wireless_audio_configuration_configuration_response_set_payload_configured_acl_radio_preferences(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_configured_acl_radio_preferences_t command);
-/** Set configuration_response.payload to configured_lc3_preferences. */
-void wireless_audio_configuration_configuration_response_set_payload_configured_lc3_preferences(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_configured_lc3_preferences_t command);
-/** Set configuration_response.payload to configured_iso_qos_preferences. */
-void wireless_audio_configuration_configuration_response_set_payload_configured_iso_qos_preferences(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_configured_iso_qos_preferences_t command);
+/** Set configuration_response.payload to configured_acl_radio_policy. */
+void wireless_audio_configuration_configuration_response_set_payload_configured_acl_radio_policy(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_configured_acl_radio_policy_t command);
+/** Set configuration_response.payload to configured_unicast_server_qos_preferences. */
+void wireless_audio_configuration_configuration_response_set_payload_configured_unicast_server_qos_preferences(wireless_audio_configuration_configuration_response_t *message, wireless_audio_configuration_configured_unicast_server_qos_preferences_t command);
 /** Dispatch configuration_response.payload to its typed handler. */
 protocol_status_t wireless_audio_configuration_configuration_response_dispatch(const wireless_audio_configuration_configuration_response_t *message, const wireless_audio_configuration_configuration_response_handler_t *handler, void *context);
 
@@ -434,6 +458,17 @@ protocol_status_t wireless_audio_configuration_fixed_acl_policy_encode(const wir
 protocol_status_t wireless_audio_configuration_fixed_acl_policy_decode(wireless_audio_configuration_fixed_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
+ * Encode a binary representation of this message. Requests an ACL connection interval
+ * within a preferred range together with peripheral latency and supervision timeout.
+ */
+protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_encode(const wireless_audio_configuration_preferred_range_acl_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+/**
+ * Decode a binary representation into this message. Requests an ACL connection interval
+ * within a preferred range together with peripheral latency and supervision timeout.
+ */
+protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_decode(wireless_audio_configuration_preferred_range_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/**
  * Encode a binary representation of this message. Increases the ACL interval by a fixed
  * step after an audio underrun episode and decreases it periodically while audio is
  * stable.
@@ -447,50 +482,61 @@ protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_encode
 protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_decode(wireless_audio_configuration_adaptive_linear_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. A tagged ACL connection policy. Type 0
- * uses controller defaults, type 1 requests a fixed interval, and type 2 uses linear
- * underrun adaptation.
+ * Encode a binary representation of this message. A tagged local ACL request policy; the
+ * peer or controller may negotiate different effective parameters.
  */
 protocol_status_t wireless_audio_configuration_acl_connection_policy_encode(const wireless_audio_configuration_acl_connection_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. A tagged ACL connection policy. Type 0
- * uses controller defaults, type 1 requests a fixed interval, and type 2 uses linear
- * underrun adaptation.
+ * Decode a binary representation into this message. A tagged local ACL request policy; the
+ * peer or controller may negotiate different effective parameters.
  */
 protocol_status_t wireless_audio_configuration_acl_connection_policy_decode(wireless_audio_configuration_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Optional ACL PHY and data length
- * preferences selected by fields_present bits defined by the protocol specification.
+ * Encode a binary representation of this message. Leaves ACL PHY and data length selection
+ * to the Bluetooth stack; reserved must be zero.
  */
-protocol_status_t wireless_audio_configuration_acl_radio_preferences_encode(const wireless_audio_configuration_acl_radio_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_encode(const wireless_audio_configuration_automatic_acl_radio_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Optional ACL PHY and data length
- * preferences selected by fields_present bits defined by the protocol specification.
+ * Decode a binary representation into this message. Leaves ACL PHY and data length
+ * selection to the Bluetooth stack; reserved must be zero.
  */
-protocol_status_t wireless_audio_configuration_acl_radio_preferences_decode(wireless_audio_configuration_acl_radio_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_decode(wireless_audio_configuration_automatic_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Optional LC3 codec preferences for one
- * or both audio directions, selected by fields_present bits.
+ * Encode a binary representation of this message. Requests ACL PHY and transmit data
+ * length preferences; zero values leave the corresponding setting to the Bluetooth stack.
  */
-protocol_status_t wireless_audio_configuration_lc3_preferences_encode(const wireless_audio_configuration_lc3_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_encode(const wireless_audio_configuration_preferred_acl_radio_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Optional LC3 codec preferences for one
- * or both audio directions, selected by fields_present bits.
+ * Decode a binary representation into this message. Requests ACL PHY and transmit data
+ * length preferences; zero values leave the corresponding setting to the Bluetooth stack.
  */
-protocol_status_t wireless_audio_configuration_lc3_preferences_decode(wireless_audio_configuration_lc3_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_decode(wireless_audio_configuration_preferred_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Optional Connected Isochronous Stream
- * QoS preferences for one or both audio directions, selected by fields_present bits.
+ * Encode a binary representation of this message. A tagged local ACL radio policy. Type 0
+ * is automatic and type 1 requests explicit preferences.
  */
-protocol_status_t wireless_audio_configuration_iso_qos_preferences_encode(const wireless_audio_configuration_iso_qos_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_acl_radio_policy_encode(const wireless_audio_configuration_acl_radio_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Optional Connected Isochronous Stream
- * QoS preferences for one or both audio directions, selected by fields_present bits.
+ * Decode a binary representation into this message. A tagged local ACL radio policy. Type
+ * 0 is automatic and type 1 requests explicit preferences.
  */
-protocol_status_t wireless_audio_configuration_iso_qos_preferences_decode(wireless_audio_configuration_iso_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_acl_radio_policy_decode(wireless_audio_configuration_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/**
+ * Encode a binary representation of this message. Local preferences returned by the
+ * Unicast Server after a standard ASCS Config Codec operation; these do not configure the
+ * CIS.
+ */
+protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_encode(const wireless_audio_configuration_unicast_server_qos_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+/**
+ * Decode a binary representation into this message. Local preferences returned by the
+ * Unicast Server after a standard ASCS Config Codec operation; these do not configure the
+ * CIS.
+ */
+protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_decode(wireless_audio_configuration_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
  * Encode a binary representation of this message. Selects the ACL connection policy and
@@ -504,37 +550,26 @@ protocol_status_t wireless_audio_configuration_set_acl_connection_policy_encode(
 protocol_status_t wireless_audio_configuration_set_acl_connection_policy_decode(wireless_audio_configuration_set_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Sets ACL PHY and data length preferences
- * and optionally persists them across restarts.
+ * Encode a binary representation of this message. Sets the local ACL PHY and data length
+ * request policy and optionally persists it across restarts.
  */
-protocol_status_t wireless_audio_configuration_set_acl_radio_preferences_encode(const wireless_audio_configuration_set_acl_radio_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_set_acl_radio_policy_encode(const wireless_audio_configuration_set_acl_radio_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Sets ACL PHY and data length
- * preferences and optionally persists them across restarts.
+ * Decode a binary representation into this message. Sets the local ACL PHY and data length
+ * request policy and optionally persists it across restarts.
  */
-protocol_status_t wireless_audio_configuration_set_acl_radio_preferences_decode(wireless_audio_configuration_set_acl_radio_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_set_acl_radio_policy_decode(wireless_audio_configuration_set_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Sets LC3 codec preferences and
- * optionally persists them across restarts.
+ * Encode a binary representation of this message. Sets preferences returned during future
+ * ASCS codec configuration operations and optionally persists them across restarts.
  */
-protocol_status_t wireless_audio_configuration_set_lc3_preferences_encode(const wireless_audio_configuration_set_lc3_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_encode(const wireless_audio_configuration_set_unicast_server_qos_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Sets LC3 codec preferences and
- * optionally persists them across restarts.
+ * Decode a binary representation into this message. Sets preferences returned during
+ * future ASCS codec configuration operations and optionally persists them across restarts.
  */
-protocol_status_t wireless_audio_configuration_set_lc3_preferences_decode(wireless_audio_configuration_set_lc3_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
-
-/**
- * Encode a binary representation of this message. Sets CIS QoS preferences and optionally
- * persists them across restarts.
- */
-protocol_status_t wireless_audio_configuration_set_iso_qos_preferences_encode(const wireless_audio_configuration_set_iso_qos_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
-/**
- * Decode a binary representation into this message. Sets CIS QoS preferences and
- * optionally persists them across restarts.
- */
-protocol_status_t wireless_audio_configuration_set_iso_qos_preferences_decode(wireless_audio_configuration_set_iso_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_decode(wireless_audio_configuration_set_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
  * Encode a binary representation of this message. Requests the configured value for one
@@ -581,37 +616,26 @@ protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_
 protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_decode(wireless_audio_configuration_configured_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Reports configured ACL radio preferences
- * and whether they are persistent.
+ * Encode a binary representation of this message. Reports the configured local ACL radio
+ * policy and whether it is persistent.
  */
-protocol_status_t wireless_audio_configuration_configured_acl_radio_preferences_encode(const wireless_audio_configuration_configured_acl_radio_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_encode(const wireless_audio_configuration_configured_acl_radio_policy_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Reports configured ACL radio
- * preferences and whether they are persistent.
+ * Decode a binary representation into this message. Reports the configured local ACL radio
+ * policy and whether it is persistent.
  */
-protocol_status_t wireless_audio_configuration_configured_acl_radio_preferences_decode(wireless_audio_configuration_configured_acl_radio_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_decode(wireless_audio_configuration_configured_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Reports configured LC3 preferences and
- * whether they are persistent.
+ * Encode a binary representation of this message. Reports the preferences returned by the
+ * server during ASCS codec configuration and whether they are persistent.
  */
-protocol_status_t wireless_audio_configuration_configured_lc3_preferences_encode(const wireless_audio_configuration_configured_lc3_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
+protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_encode(const wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Reports configured LC3 preferences and
- * whether they are persistent.
+ * Decode a binary representation into this message. Reports the preferences returned by
+ * the server during ASCS codec configuration and whether they are persistent.
  */
-protocol_status_t wireless_audio_configuration_configured_lc3_preferences_decode(wireless_audio_configuration_configured_lc3_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
-
-/**
- * Encode a binary representation of this message. Reports configured CIS QoS preferences
- * and whether they are persistent.
- */
-protocol_status_t wireless_audio_configuration_configured_iso_qos_preferences_encode(const wireless_audio_configuration_configured_iso_qos_preferences_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
-/**
- * Decode a binary representation into this message. Reports configured CIS QoS preferences
- * and whether they are persistent.
- */
-protocol_status_t wireless_audio_configuration_configured_iso_qos_preferences_decode(wireless_audio_configuration_configured_iso_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_decode(wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
  * Encode a binary representation of this message. Reports whether a command was accepted
@@ -626,40 +650,39 @@ protocol_status_t wireless_audio_configuration_command_result_decode(wireless_au
 
 /**
  * Encode a binary representation of this message. A response correlated to a configuration
- * command. Type 0 is a command result and types 1 through 4 report one configuration
- * section.
+ * command. Type 0 is a command result and types 1 through 3 report one policy section.
  */
 protocol_status_t wireless_audio_configuration_configuration_response_encode(const wireless_audio_configuration_configuration_response_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
  * Decode a binary representation into this message. A response correlated to a
- * configuration command. Type 0 is a command result and types 1 through 4 report one
- * configuration section.
+ * configuration command. Type 0 is a command result and types 1 through 3 report one
+ * policy section.
  */
 protocol_status_t wireless_audio_configuration_configuration_response_decode(wireless_audio_configuration_configuration_response_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Reports effective ACL parameters and
- * negotiated LE Audio configuration for one connection and stream; fields without a
- * corresponding validity flag are zero.
+ * Encode a binary representation of this message. Read-only observation of effective ACL
+ * parameters and the LC3 and ISO QoS values negotiated through PACS and ASCS for one
+ * connection and stream; fields without a corresponding validity flag are zero.
  */
 protocol_status_t wireless_audio_configuration_runtime_state_encode(const wireless_audio_configuration_runtime_state_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Reports effective ACL parameters and
- * negotiated LE Audio configuration for one connection and stream; fields without a
- * corresponding validity flag are zero.
+ * Decode a binary representation into this message. Read-only observation of effective ACL
+ * parameters and the LC3 and ISO QoS values negotiated through PACS and ASCS for one
+ * connection and stream; fields without a corresponding validity flag are zero.
  */
 protocol_status_t wireless_audio_configuration_runtime_state_decode(wireless_audio_configuration_runtime_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 /**
- * Encode a binary representation of this message. Reports supported configuration
- * sections, policy types, radio features, and value ranges for this firmware build and
- * controller.
+ * Encode a binary representation of this message. Reports supported custom policy sections
+ * and value ranges for this firmware build and controller; standard LC3 capabilities are
+ * exposed through PACS.
  */
 protocol_status_t wireless_audio_configuration_capabilities_encode(const wireless_audio_configuration_capabilities_t *message, uint8_t *buffer, size_t buffer_size, size_t *bytes_written);
 /**
- * Decode a binary representation into this message. Reports supported configuration
- * sections, policy types, radio features, and value ranges for this firmware build and
- * controller.
+ * Decode a binary representation into this message. Reports supported custom policy
+ * sections and value ranges for this firmware build and controller; standard LC3
+ * capabilities are exposed through PACS.
  */
 protocol_status_t wireless_audio_configuration_capabilities_decode(wireless_audio_configuration_capabilities_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 

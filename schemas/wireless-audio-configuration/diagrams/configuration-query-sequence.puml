@@ -10,12 +10,12 @@ participant "GATT service" as Gatt
 participant "Protocol decoder" as Protocol
 participant "Configuration manager" as Manager
 
-Client -> Gatt: Read capabilities
+Client -> Gatt: Read custom policy capabilities
 Gatt -> Manager: Get build and controller capabilities
 Manager --> Gatt: capabilities
-Gatt --> Client: 64-byte value via GATT read / long read
+Gatt --> Client: 61-byte value via GATT read / long read
 
-Client -> Client: Select only supported command,\nsection, policy, and values
+Client -> Client: Select only supported custom command,\nsection, policy, and values
 Client -> Gatt: Enable response indications
 Client -> Gatt: Write get_configuration\n(request_id, section ID)
 Gatt -> Protocol: Decode command

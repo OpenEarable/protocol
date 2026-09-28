@@ -1,6 +1,6 @@
 protocol: wireless-audio-configuration
 version: 1
-description: Extensible protocol for configuring Bluetooth link policies and LE Audio preferences and for observing negotiated runtime state.
+description: Extensible protocol for configuring device-owned Bluetooth audio policies and observing standard-negotiated LE Audio runtime state.
 
 transport:
   ble:
@@ -36,6 +36,18 @@ messages:
       - name: supervision_timeout_ms
         type: uint32
 
+  preferred_range_acl_policy:
+    description: Requests an ACL connection interval within a preferred range together with peripheral latency and supervision timeout.
+    fields:
+      - name: minimum_interval_us
+        type: uint32
+      - name: maximum_interval_us
+        type: uint32
+      - name: peripheral_latency
+        type: uint16
+      - name: supervision_timeout_ms
+        type: uint32
+
   adaptive_linear_acl_policy:
     description: Increases the ACL interval by a fixed step after an audio underrun episode and decreases it periodically while audio is stable.
     fields:
@@ -57,7 +69,7 @@ messages:
         type: uint32
 
   acl_connection_policy:
-    description: A tagged ACL connection policy. Type 0 uses controller defaults, type 1 requests a fixed interval, and type 2 uses linear underrun adaptation.
+    description: A tagged local ACL request policy; the peer or controller may negotiate different effective parameters.
     fields:
       - name: policy
         type: union
@@ -65,13 +77,18 @@ messages:
         variants:
           0: controller_default_acl_policy
           1: fixed_acl_policy
-          2: adaptive_linear_acl_policy
+          2: preferred_range_acl_policy
+          3: adaptive_linear_acl_policy
 
-  acl_radio_preferences:
-    description: Optional ACL PHY and data length preferences selected by fields_present bits defined by the protocol specification.
+  automatic_acl_radio_policy:
+    description: Leaves ACL PHY and data length selection to the Bluetooth stack; reserved must be zero.
     fields:
-      - name: fields_present
-        type: uint16
+      - name: reserved
+        type: uint8
+
+  preferred_acl_radio_policy:
+    description: Requests ACL PHY and transmit data length preferences; zero values leave the corresponding setting to the Bluetooth stack.
+    fields:
       - name: transmit_phy_mask
         type: uint8
       - name: receive_phy_mask
@@ -81,45 +98,29 @@ messages:
       - name: transmit_max_time_us
         type: uint16
 
-  lc3_preferences:
-    description: Optional LC3 codec preferences for one or both audio directions, selected by fields_present bits.
+  acl_radio_policy:
+    description: A tagged local ACL radio policy. Type 0 is automatic and type 1 requests explicit preferences.
     fields:
-      - name: fields_present
-        type: uint16
-      - name: direction_mask
-        type: uint8
-      - name: sampling_frequency_hz
-        type: uint32
-      - name: frame_duration_us
-        type: uint16
-      - name: octets_per_frame
-        type: uint16
-      - name: frame_blocks_per_sdu
-        type: uint8
-      - name: channel_allocation
-        type: uint32
+      - name: policy
+        type: union
+        tag_type: uint8
+        variants:
+          0: automatic_acl_radio_policy
+          1: preferred_acl_radio_policy
 
-  iso_qos_preferences:
-    description: Optional Connected Isochronous Stream QoS preferences for one or both audio directions, selected by fields_present bits.
+  unicast_server_qos_preferences:
+    description: Local preferences returned by the Unicast Server after a standard ASCS Config Codec operation; these do not configure the CIS.
     fields:
-      - name: fields_present
-        type: uint32
       - name: direction_mask
         type: uint8
-      - name: sdu_interval_us
-        type: uint32
-      - name: framing
+      - name: unframed_supported
         type: uint8
-      - name: phy_mask
+      - name: preferred_phy_mask
         type: uint8
-      - name: retransmission_number
+      - name: preferred_retransmission_number
         type: uint8
-      - name: maximum_sdu_octets
-        type: uint16
       - name: maximum_transport_latency_ms
         type: uint16
-      - name: presentation_delay_us
-        type: uint32
       - name: minimum_presentation_delay_us
         type: uint32
       - name: maximum_presentation_delay_us
@@ -137,29 +138,21 @@ messages:
       - name: policy
         type: acl_connection_policy
 
-  set_acl_radio_preferences:
-    description: Sets ACL PHY and data length preferences and optionally persists them across restarts.
+  set_acl_radio_policy:
+    description: Sets the local ACL PHY and data length request policy and optionally persists it across restarts.
     fields:
       - name: persist
         type: uint8
-      - name: preferences
-        type: acl_radio_preferences
+      - name: policy
+        type: acl_radio_policy
 
-  set_lc3_preferences:
-    description: Sets LC3 codec preferences and optionally persists them across restarts.
+  set_unicast_server_qos_preferences:
+    description: Sets preferences returned during future ASCS codec configuration operations and optionally persists them across restarts.
     fields:
       - name: persist
         type: uint8
       - name: preferences
-        type: lc3_preferences
-
-  set_iso_qos_preferences:
-    description: Sets CIS QoS preferences and optionally persists them across restarts.
-    fields:
-      - name: persist
-        type: uint8
-      - name: preferences
-        type: iso_qos_preferences
+        type: unicast_server_qos_preferences
 
   get_configuration:
     description: Requests the configured value for one section identified by its stable section ID.
@@ -183,11 +176,10 @@ messages:
         tag_type: uint8
         variants:
           0: set_acl_connection_policy
-          1: set_acl_radio_preferences
-          2: set_lc3_preferences
-          3: set_iso_qos_preferences
-          4: get_configuration
-          5: restore_defaults
+          1: set_acl_radio_policy
+          2: set_unicast_server_qos_preferences
+          3: get_configuration
+          4: restore_defaults
 
   configured_acl_connection_policy:
     description: Reports the configured ACL connection policy and whether it is persistent.
@@ -197,29 +189,21 @@ messages:
       - name: policy
         type: acl_connection_policy
 
-  configured_acl_radio_preferences:
-    description: Reports configured ACL radio preferences and whether they are persistent.
+  configured_acl_radio_policy:
+    description: Reports the configured local ACL radio policy and whether it is persistent.
     fields:
       - name: persisted
         type: uint8
-      - name: preferences
-        type: acl_radio_preferences
+      - name: policy
+        type: acl_radio_policy
 
-  configured_lc3_preferences:
-    description: Reports configured LC3 preferences and whether they are persistent.
+  configured_unicast_server_qos_preferences:
+    description: Reports the preferences returned by the server during ASCS codec configuration and whether they are persistent.
     fields:
       - name: persisted
         type: uint8
       - name: preferences
-        type: lc3_preferences
-
-  configured_iso_qos_preferences:
-    description: Reports configured CIS QoS preferences and whether they are persistent.
-    fields:
-      - name: persisted
-        type: uint8
-      - name: preferences
-        type: iso_qos_preferences
+        type: unicast_server_qos_preferences
 
   command_result:
     description: Reports whether a command was accepted and whether applying it requires a connection or stream restart.
@@ -234,7 +218,7 @@ messages:
         type: uint32
 
   configuration_response:
-    description: A response correlated to a configuration command. Type 0 is a command result and types 1 through 4 report one configuration section.
+    description: A response correlated to a configuration command. Type 0 is a command result and types 1 through 3 report one policy section.
     fields:
       - name: request_id
         type: uint16
@@ -244,12 +228,11 @@ messages:
         variants:
           0: command_result
           1: configured_acl_connection_policy
-          2: configured_acl_radio_preferences
-          3: configured_lc3_preferences
-          4: configured_iso_qos_preferences
+          2: configured_acl_radio_policy
+          3: configured_unicast_server_qos_preferences
 
   runtime_state:
-    description: Reports effective ACL parameters and negotiated LE Audio configuration for one connection and stream; fields without a corresponding validity flag are zero.
+    description: Read-only observation of effective ACL parameters and the LC3 and ISO QoS values negotiated through PACS and ASCS for one connection and stream; fields without a corresponding validity flag are zero.
     fields:
       - name: sequence
         type: uint32
@@ -307,7 +290,7 @@ messages:
         type: uint32
 
   capabilities:
-    description: Reports supported configuration sections, policy types, radio features, and value ranges for this firmware build and controller.
+    description: Reports supported custom policy sections and value ranges for this firmware build and controller; standard LC3 capabilities are exposed through PACS.
     fields:
       - name: protocol_version
         type: uint16
@@ -331,23 +314,19 @@ messages:
         type: uint32
       - name: maximum_acl_supervision_timeout_ms
         type: uint32
+      - name: minimum_acl_data_octets
+        type: uint16
       - name: maximum_acl_data_octets
         type: uint16
-      - name: supported_lc3_sampling_frequency_mask
+      - name: minimum_acl_data_time_us
         type: uint16
-      - name: supported_lc3_frame_duration_mask
+      - name: maximum_acl_data_time_us
+        type: uint16
+      - name: supported_audio_direction_mask
         type: uint8
-      - name: minimum_lc3_octets_per_frame
-        type: uint16
-      - name: maximum_lc3_octets_per_frame
-        type: uint16
-      - name: maximum_lc3_frame_blocks_per_sdu
+      - name: maximum_preferred_retransmission_number
         type: uint8
-      - name: maximum_iso_retransmission_number
-        type: uint8
-      - name: maximum_iso_sdu_octets
-        type: uint16
-      - name: maximum_iso_transport_latency_ms
+      - name: maximum_transport_latency_ms
         type: uint16
       - name: minimum_presentation_delay_us
         type: uint32
