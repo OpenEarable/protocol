@@ -1,0 +1,55 @@
+@startuml
+title Runtime and negotiated state reporting
+
+skinparam monochrome true
+skinparam sequenceMessageAlign center
+hide footbox
+
+actor "Control application" as Client
+participant "GATT service" as Gatt
+participant "Runtime state collector" as State
+participant "Bluetooth host" as Host
+participant "Audio datapath" as Audio
+participant "Bluetooth peer" as Peer
+
+Client -> Gatt: Enable runtime_state notifications
+
+Peer -> Host: ACL connection established
+Host -> State: Connection ID and effective ACL parameters
+State -> Gatt: runtime_state\n(validity bit 0)
+Gatt -> Client: Notify connected state
+
+Peer -> Host: PHY / data length updated
+Host -> State: Effective TX/RX PHY and lengths
+State -> Gatt: runtime_state\n(validity bits 0..2)
+Gatt -> Client: Notify link state
+
+Peer -> Host: ASE codec configuration
+Host -> State: Negotiated LC3 configuration
+State -> Gatt: runtime_state\n(validity bits 0..3)
+Gatt -> Client: Notify codec-configured state
+
+Peer -> Host: CIS QoS configuration
+Host -> State: Negotiated ISO QoS and presentation delay
+State -> Gatt: runtime_state\n(validity bits 0..5)
+Gatt -> Client: Notify QoS-configured state
+
+Peer -> Host: Stream enabled and started
+Host -> Audio: Start audio datapath
+Audio -> State: Streaming lifecycle state
+State -> Gatt: runtime_state
+Gatt -> Client: Notify streaming state
+
+loop For each underrun episode or ACL policy adjustment
+    Audio -> State: Updated underrun counter
+    Host -> State: Effective ACL update, if changed
+    State -> State: Increment sequence and adjustment counter
+    State -> Gatt: runtime_state\n(validity bit 6)
+    Gatt -> Client: Notify latest effective state
+end
+
+note over State,Client
+Each notification identifies a session-local connection and stream.
+The validity mask says which groups of fields may be interpreted.
+end note
+@enduml

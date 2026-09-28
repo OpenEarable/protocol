@@ -6,6 +6,7 @@ project(open_earable_protocols LANGUAGES C)
 add_library(open_earable_protocols STATIC
     "src/protocol_runtime.c"
     "src/audio_response_protocol.c"
+    "src/wireless_audio_configuration_protocol.c"
 )
 add_library(OpenEarable::Protocols ALIAS open_earable_protocols)
 

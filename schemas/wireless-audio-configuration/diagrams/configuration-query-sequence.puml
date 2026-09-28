@@ -1,0 +1,42 @@
+@startuml
+title Discovering capabilities and reading configuration
+
+skinparam monochrome true
+skinparam sequenceMessageAlign center
+hide footbox
+
+actor "Control application" as Client
+participant "GATT service" as Gatt
+participant "Protocol decoder" as Protocol
+participant "Configuration manager" as Manager
+
+Client -> Gatt: Read capabilities
+Gatt -> Manager: Get build and controller capabilities
+Manager --> Gatt: capabilities
+Gatt --> Client: 64-byte value via GATT read / long read
+
+Client -> Client: Select only supported command,\nsection, policy, and values
+Client -> Gatt: Enable response indications
+Client -> Gatt: Write get_configuration\n(request_id, section ID)
+Gatt -> Protocol: Decode command
+Protocol --> Gatt: Typed get_configuration
+Gatt --> Client: ATT write response
+Gatt -> Manager: Read selected section
+Manager --> Gatt: configured_* value
+Gatt -> Client: Indicate configuration_response\n(request_id, section variant)
+Client --> Gatt: Confirmation
+
+alt Client requests an unknown section ID
+    Client -> Gatt: Write get_configuration
+    Gatt --> Client: ATT write response
+    Gatt -> Manager: Validate section ID
+    Manager --> Gatt: command_result(unsupported)
+    Gatt -> Client: Indicate configuration_response
+    Client --> Gatt: Confirmation
+end
+
+note over Client,Gatt
+An encoded command can be structurally valid yet semantically unsupported.
+Only malformed binary payloads are rejected directly with an ATT error.
+end note
+@enduml

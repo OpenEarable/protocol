@@ -1,0 +1,37 @@
+@startuml
+title Adaptive-linear ACL connection policy
+
+skinparam monochrome true
+hide empty description
+
+[*] --> Disconnected
+
+Disconnected --> Stable : managed ACL connected\ninitialize from effective interval
+Stable --> Disconnected : managed ACL disconnected
+Cooldown --> Disconnected : managed ACL disconnected
+UpdatePending --> Disconnected : managed ACL disconnected
+
+Stable --> Stable : not streaming / recovery tick\nno change
+Stable --> Stable : stable streaming / recovery tick\nbefore minimum update period\nno change
+Stable --> UpdatePending : underrun episode and cooldown elapsed\ntarget = min(maximum, effective + increase step)
+Stable --> UpdatePending : stable streaming and recovery due\ntarget = max(minimum, effective - decrease step)
+
+Cooldown --> Cooldown : underrun or recovery tick\nbefore minimum update period\ncoalesce desired target
+Cooldown --> UpdatePending : minimum update period elapsed\nrequest coalesced target
+
+UpdatePending --> Cooldown : Bluetooth request accepted locally\nwait for peer result
+UpdatePending --> Stable : local request failed\nrecord platform error
+
+Cooldown --> Stable : parameter update callback\nstore effective interval
+Cooldown --> Stable : peer rejection or timeout\nretain previous effective interval
+
+note right of UpdatePending
+All arithmetic saturates at the configured bounds.
+The requested value never replaces effective state until
+the Bluetooth callback confirms the negotiated result.
+end note
+
+note bottom of Stable
+Recovery is evaluated only while audio is streaming.
+end note
+@enduml

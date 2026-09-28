@@ -1,0 +1,60 @@
+@startuml
+title Applying a wireless audio configuration
+
+skinparam monochrome true
+skinparam sequenceMessageAlign center
+hide footbox
+
+actor "Control application" as Client
+participant "GATT service" as Gatt
+participant "Protocol decoder" as Protocol
+participant "Configuration manager" as Manager
+database "Persistent settings" as Settings
+participant "Bluetooth host" as Host
+participant "Bluetooth peer" as Peer
+
+Client -> Gatt: Enable response indications
+Client -> Gatt: Write configuration_command\n(request_id, set_*, persist)
+Gatt -> Protocol: Decode command
+
+alt Payload is malformed
+    Protocol --> Gatt: Decode error
+    Gatt --> Client: ATT error\n(no protocol response)
+else Payload is well formed
+    Protocol --> Gatt: Typed command
+    Gatt --> Client: ATT write response
+    Gatt -> Manager: Validate and apply command
+
+    alt Value or section is unsupported
+        Manager --> Gatt: command_result(unsupported or invalid)
+        Gatt -> Client: Indicate configuration_response\n(same request_id)
+        Client --> Gatt: Confirmation
+    else Command is accepted
+        opt persist = 1
+            Manager -> Settings: Store validated section
+            Settings --> Manager: Stored
+        end
+
+        alt Can be applied to the current connection or stream
+            Manager -> Host: Request ACL, codec, or QoS update
+            Manager --> Gatt: command_result(pending)
+            Gatt -> Client: Indicate configuration_response\n(same request_id)
+            Client --> Gatt: Confirmation
+            Host -> Peer: Bluetooth update procedure
+            Peer --> Host: Accepted, negotiated, or rejected
+            Host --> Manager: Effective parameters / status
+            Manager -> Gatt: Publish runtime_state
+            Gatt -> Client: Notify effective state
+        else Reconnect or stream restart is required
+            Manager --> Gatt: command_result(restart required, section mask)
+            Gatt -> Client: Indicate configuration_response\n(same request_id)
+            Client --> Gatt: Confirmation
+        end
+    end
+end
+
+note over Client,Peer
+The command result reports acceptance of the requested configuration.
+runtime_state reports the parameters that actually became effective.
+end note
+@enduml

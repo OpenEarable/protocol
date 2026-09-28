@@ -18,7 +18,13 @@ from protocol_generator import (
     load_protocol,
 )
 from protocol_generator.errors import SchemaError
-from protocol_generator.model import ArrayType, BleCharacteristicProperty, UnionType
+from protocol_generator.model import (
+    ArrayType,
+    BleCharacteristicProperty,
+    MessageRefType,
+    ScalarType,
+    UnionType,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -119,6 +125,108 @@ class GenerateProtocolsTest(unittest.TestCase):
         self.assertEqual(frequencies_type.length_field, "points")
         self.assertEqual(frequencies_type.item_type.name, "uint16")
 
+    def test_loads_wireless_audio_configuration_schema(self) -> None:
+        """Wireless audio configuration should retain stable tags and BLE roles."""
+
+        protocol = load_protocol(
+            pathlib.Path("schemas/wireless-audio-configuration/protocol.yml")
+        )
+
+        self.assertEqual(protocol.name, "wireless-audio-configuration")
+        self.assertEqual(protocol.version, 1)
+        self.assertIsNotNone(protocol.ble)
+        assert protocol.ble is not None
+        self.assertEqual(protocol.ble.service_uuid, "5bddd959-06f3-4029-85d3-5471b1eda18a")
+        self.assertEqual(
+            [characteristic.name for characteristic in protocol.ble.characteristics],
+            ["command", "response", "runtime_state", "capabilities"],
+        )
+        self.assertEqual(
+            [characteristic.properties for characteristic in protocol.ble.characteristics],
+            [
+                (BleCharacteristicProperty.WRITE,),
+                (BleCharacteristicProperty.INDICATE,),
+                (BleCharacteristicProperty.READ, BleCharacteristicProperty.NOTIFY),
+                (BleCharacteristicProperty.READ,),
+            ],
+        )
+
+        messages = {message.name: message for message in protocol.messages}
+        acl_policy_type = messages["acl_connection_policy"].fields[0].type
+        self.assertIsInstance(acl_policy_type, UnionType)
+        assert isinstance(acl_policy_type, UnionType)
+        self.assertEqual(
+            [(variant.tag, variant.message.name) for variant in acl_policy_type.variants],
+            [
+                (0, "controller_default_acl_policy"),
+                (1, "fixed_acl_policy"),
+                (2, "adaptive_linear_acl_policy"),
+            ],
+        )
+
+        command_type = messages["configuration_command"].fields[1].type
+        self.assertIsInstance(command_type, UnionType)
+        assert isinstance(command_type, UnionType)
+        self.assertEqual(
+            [(variant.tag, variant.message.name) for variant in command_type.variants],
+            [
+                (0, "set_acl_connection_policy"),
+                (1, "set_acl_radio_preferences"),
+                (2, "set_lc3_preferences"),
+                (3, "set_iso_qos_preferences"),
+                (4, "get_configuration"),
+                (5, "restore_defaults"),
+            ],
+        )
+
+        response_type = messages["configuration_response"].fields[1].type
+        self.assertIsInstance(response_type, UnionType)
+        assert isinstance(response_type, UnionType)
+        self.assertEqual(
+            [(variant.tag, variant.message.name) for variant in response_type.variants],
+            [
+                (0, "command_result"),
+                (1, "configured_acl_connection_policy"),
+                (2, "configured_acl_radio_preferences"),
+                (3, "configured_lc3_preferences"),
+                (4, "configured_iso_qos_preferences"),
+            ],
+        )
+        self.assertEqual(
+            [field.name for field in messages["runtime_state"].fields[-2:]],
+            ["audio_underrun_count", "acl_adjustment_count"],
+        )
+
+        scalar_sizes = {
+            "uint8": 1,
+            "int8": 1,
+            "uint16": 2,
+            "int16": 2,
+            "uint32": 4,
+            "int32": 4,
+            "float": 4,
+            "double": 8,
+        }
+
+        def field_size(field_type: object) -> int:
+            if isinstance(field_type, ScalarType):
+                return scalar_sizes[field_type.name]
+            if isinstance(field_type, MessageRefType):
+                return message_size(field_type.name)
+            if isinstance(field_type, UnionType):
+                return scalar_sizes[field_type.tag_type.name] + max(
+                    message_size(variant.message.name) for variant in field_type.variants
+                )
+            self.fail(f"unexpected dynamic field in fixed-size message: {field_type}")
+
+        def message_size(message_name: str) -> int:
+            return sum(field_size(field.type) for field in messages[message_name].fields)
+
+        self.assertEqual(message_size("configuration_command"), 40)
+        self.assertEqual(message_size("configuration_response"), 40)
+        self.assertEqual(message_size("runtime_state"), 65)
+        self.assertEqual(message_size("capabilities"), 64)
+
     def test_generates_dart_and_c_outputs(self) -> None:
         """The generator should emit Dart, C header, and C source files."""
 
@@ -144,6 +252,24 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertTrue((output_dir / "c/include/audio_response_protocol.h").is_file())
             self.assertTrue((output_dir / "c/src/audio_response_protocol.c").is_file())
             self.assertTrue((output_dir / "c/include/zephyr/audio_response_ble.h").is_file())
+            self.assertTrue(
+                (
+                    output_dir
+                    / "dart/lib/src/wireless_audio_configuration_protocol.dart"
+                ).is_file()
+            )
+            self.assertTrue(
+                (
+                    output_dir
+                    / "c/include/wireless_audio_configuration_protocol.h"
+                ).is_file()
+            )
+            self.assertTrue(
+                (
+                    output_dir
+                    / "c/include/zephyr/wireless_audio_configuration_ble.h"
+                ).is_file()
+            )
 
             dart_library = (output_dir / "dart/lib/open_earable_protocols.dart").read_text()
             dart_output = (output_dir / "dart/lib/src/audio_response_protocol.dart").read_text()
@@ -158,6 +284,10 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertIn("ProtocolBleCharacteristicDefinition", dart_library)
             self.assertIn("ProtocolBleCharacteristicProperty", dart_library)
             self.assertIn("export 'src/audio_response_protocol.dart';", dart_library)
+            self.assertIn(
+                "export 'src/wireless_audio_configuration_protocol.dart';",
+                dart_library,
+            )
             self.assertIn("class AudioResponseTransferControl", dart_output)
             self.assertIn("sealed class AudioResponseTransferControlCommand", dart_output)
             self.assertIn(
@@ -258,6 +388,7 @@ class GenerateProtocolsTest(unittest.TestCase):
             self.assertNotIn("protocol_status_t protocol_write_uint16(", c_source)
             self.assertIn("protocol_status_t protocol_write_uint16(", c_runtime)
             self.assertIn('"src/audio_response_protocol.c"', c_cmake)
+            self.assertIn('"src/wireless_audio_configuration_protocol.c"', c_cmake)
             self.assertIn("add_library(OpenEarable::Protocols ALIAS", c_cmake)
             self.assertIn("target_compile_features(open_earable_protocols PUBLIC c_std_99)", c_cmake)
 

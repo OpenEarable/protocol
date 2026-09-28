@@ -1,0 +1,119 @@
+@startuml
+title Wireless audio configuration protocol model
+
+skinparam monochrome true
+skinparam packageStyle rectangle
+hide empty methods
+
+package "GATT service" {
+    class command <<write>>
+    class response <<indicate>>
+    class "runtime_state" as runtime_state_characteristic <<read, notify>>
+    class "capabilities" as capabilities_characteristic <<read>>
+}
+
+package "Command envelope" {
+    class configuration_command {
+        request_id : uint16
+        operation_tag : uint8
+    }
+
+    class set_acl_connection_policy {
+        persist : uint8
+    }
+    class set_acl_radio_preferences {
+        persist : uint8
+    }
+    class set_lc3_preferences {
+        persist : uint8
+    }
+    class set_iso_qos_preferences {
+        persist : uint8
+    }
+    class get_configuration {
+        section : uint8
+    }
+    class restore_defaults {
+        section_mask : uint32
+    }
+}
+
+package "ACL policy union" {
+    class acl_connection_policy {
+        policy_tag : uint8
+    }
+    class controller_default_acl_policy
+    class fixed_acl_policy {
+        interval_us : uint32
+        peripheral_latency : uint16
+        supervision_timeout_ms : uint32
+    }
+    class adaptive_linear_acl_policy {
+        minimum_interval_us : uint32
+        maximum_interval_us : uint32
+        underrun_increase_step_us : uint32
+        recovery_decrease_step_us : uint32
+        recovery_period_ms : uint32
+        minimum_update_period_ms : uint32
+    }
+}
+
+package "Preference sections" {
+    class acl_radio_preferences
+    class lc3_preferences
+    class iso_qos_preferences
+}
+
+package "Response envelope" {
+    class configuration_response {
+        request_id : uint16
+        payload_tag : uint8
+    }
+    class command_result
+    class configured_acl_connection_policy
+    class configured_acl_radio_preferences
+    class configured_lc3_preferences
+    class configured_iso_qos_preferences
+}
+
+package "Observation" {
+    class "runtime_state" as runtime_state_message {
+        sequence : uint32
+        validity_flags : uint32
+        connection_id : uint16
+        stream_id : uint8
+        effective ACL / LC3 / ISO values
+    }
+    class "capabilities" as capabilities_message {
+        protocol_version : uint16
+        supported section / command / policy masks
+        controller and build limits
+    }
+}
+
+command --> configuration_command : encodes
+configuration_command *-- set_acl_connection_policy : tag 0
+configuration_command *-- set_acl_radio_preferences : tag 1
+configuration_command *-- set_lc3_preferences : tag 2
+configuration_command *-- set_iso_qos_preferences : tag 3
+configuration_command *-- get_configuration : tag 4
+configuration_command *-- restore_defaults : tag 5
+
+set_acl_connection_policy *-- acl_connection_policy
+acl_connection_policy *-- controller_default_acl_policy : tag 0
+acl_connection_policy *-- fixed_acl_policy : tag 1
+acl_connection_policy *-- adaptive_linear_acl_policy : tag 2
+set_acl_radio_preferences *-- acl_radio_preferences
+set_lc3_preferences *-- lc3_preferences
+set_iso_qos_preferences *-- iso_qos_preferences
+
+response --> configuration_response : encodes
+configuration_response *-- command_result : tag 0
+configuration_response *-- configured_acl_connection_policy : tag 1
+configuration_response *-- configured_acl_radio_preferences : tag 2
+configuration_response *-- configured_lc3_preferences : tag 3
+configuration_response *-- configured_iso_qos_preferences : tag 4
+
+runtime_state_characteristic --> runtime_state_message : encodes
+capabilities_characteristic --> capabilities_message : encodes
+@enduml
