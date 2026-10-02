@@ -4,3 +4,5 @@ __pycache__/
 generated/dart/.dart_tool/
 generated/dart/pubspec.lock
 generated/c/build/
+
+openearable_protocol_generator.egg-info
