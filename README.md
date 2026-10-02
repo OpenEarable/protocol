@@ -162,12 +162,20 @@ required.
 
 Supported scalar field types are:
 
-- Integers: `uint8`, `uint16`, `uint32`, `int8`, `int16`, and `int32`.
+- Integers: `uint8`, `uint16`, `uint32`, `uint64`, `int8`, `int16`, `int32`, and `int64`.
 - Floating point: `float` and `double`.
 
 Multi-byte values are encoded little-endian. `float` uses the 4-byte IEEE-754
 binary32 representation and `double` uses the 8-byte IEEE-754 binary64
 representation.
+
+In C, 64-bit fields use `uint64_t` and `int64_t`. In Dart, both use `BigInt`
+to preserve every value on native and JavaScript targets. For example,
+`BigInt.parse('18446744073709551615')` represents the maximum `uint64`.
+Both types occupy eight little-endian bytes; signed values use two's complement.
+Dart encoders reject values outside 0..2^64−1 (`uint64`) or −2^63..2^63−1
+(`int64`) with `RangeError`. Arrays of these types use `List<BigInt>` in Dart.
+64-bit fields cannot serve as array lengths or union discriminators.
 
 Supported dynamic field types:
 
@@ -175,10 +183,10 @@ Supported dynamic field types:
 - `uint16[length_field]` and other scalar arrays for variable-length arrays.
 - `float[length_field]` and `double[length_field]` for floating-point arrays.
 
-Length fields must be integer fields and must appear before the dynamic field
+Length fields must be integer fields of at most 32 bits and must appear before the dynamic field
 that references them.
 
-Tagged unions declare their discriminator width and stable numeric tags
+Tagged unions use integer discriminators of at most 32 bits and declare their discriminator width and stable numeric tags
 explicitly:
 
 ```yaml

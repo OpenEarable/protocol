@@ -61,7 +61,7 @@ def load_protocol(path: pathlib.Path) -> Protocol:
             field_type = _load_field_type(path, message_name, field_name, raw_field, message_names)
             _validate_field_type(path, message_name, field_name, field_type, known_integer_fields)
             fields.append(Field(field_name, field_type))
-            if isinstance(field_type, ScalarType) and field_type.name in INTEGER_SCALAR_TYPE_NAMES:
+            if isinstance(field_type, ScalarType) and field_type.name in INTEGER_SCALAR_TYPE_NAMES - {"uint64", "int64"}:
                 known_integer_fields.add(field_name)
         messages.append(
             Message(
@@ -207,9 +207,9 @@ def _load_field_type(
         return parse_type(raw_type, message_names)
 
     tag_type_name = _required_str(raw_field, "tag_type")
-    if tag_type_name not in INTEGER_SCALAR_TYPE_NAMES:
+    if tag_type_name not in INTEGER_SCALAR_TYPE_NAMES - {"uint64", "int64"}:
         raise SchemaError(
-            f"{path}: {message_name}.{field_name} union tag_type must be an integer scalar"
+            f"{path}: {message_name}.{field_name} union tag_type must be an integer scalar of at most 32 bits"
         )
     raw_variants = raw_field.get("variants")
     if not isinstance(raw_variants, dict) or not raw_variants:
@@ -272,5 +272,5 @@ def _validate_field_type(
     if isinstance(field_type, (BytesType, ArrayType)) and field_type.length_field not in known_integer_fields:
         raise SchemaError(
             f"{path}: {message_name}.{field_name} references length field "
-            f"'{field_type.length_field}' before it is defined"
+            f"'{field_type.length_field}' which must be a previously defined integer of at most 32 bits"
         )

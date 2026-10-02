@@ -124,6 +124,27 @@ class ProtocolWriter {
     _builder.add(data.buffer.asUint8List());
   }
 
+  /// Writes an unsigned 64-bit integer, rejecting values outside its range.
+  void uint64(BigInt value) => _integer64(value, false);
+
+  /// Writes a signed 64-bit integer in two's-complement representation.
+  void int64(BigInt value) => _integer64(value, true);
+
+  void _integer64(BigInt value, bool signed) {
+    final limit = BigInt.one << (signed ? 63 : 64);
+    final minimum = signed ? -limit : BigInt.zero;
+    if (value < minimum || value >= limit) {
+      throw RangeError('value does not fit a 64-bit integer');
+    }
+    var bits = value.toUnsigned(64);
+    final bytes = Uint8List(8);
+    for (var index = 0; index < 8; index++) {
+      bytes[index] = (bits & BigInt.from(255)).toInt();
+      bits >>= 8;
+    }
+    _builder.add(bytes);
+  }
+
   void float32(double value) {
     final data = ByteData(4)..setFloat32(0, value, Endian.little);
     _builder.add(data.buffer.asUint8List());
@@ -192,6 +213,20 @@ class ProtocolReader {
     _offset += 4;
     return value;
   }
+
+  /// Reads an exact unsigned 64-bit integer on native and web targets.
+  BigInt uint64() {
+    _require(8);
+    var value = BigInt.zero;
+    for (var index = 7; index >= 0; index--) {
+      value = (value << 8) | BigInt.from(_bytes[_offset + index]);
+    }
+    _offset += 8;
+    return value;
+  }
+
+  /// Reads a signed 64-bit two's-complement integer.
+  BigInt int64() => uint64().toSigned(64);
 
   double float32() {
     _require(4);

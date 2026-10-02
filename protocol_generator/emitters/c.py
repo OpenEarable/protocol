@@ -29,9 +29,11 @@ C_SCALAR_TYPES = {
     "uint8": "uint8_t",
     "uint16": "uint16_t",
     "uint32": "uint32_t",
+    "uint64": "uint64_t",
     "int8": "int8_t",
     "int16": "int16_t",
     "int32": "int32_t",
+    "int64": "int64_t",
     "float": "float",
     "double": "double",
 }
@@ -205,14 +207,6 @@ class _CRuntimeRenderer:
         )
         implementation = implementation.replace("static inline PROTOCOL_UNUSED ", "")
         implementation = implementation.replace("bool protocol_can_", "static bool protocol_can_")
-        implementation = implementation.replace(
-            "protocol_status_t protocol_write_uint64",
-            "static protocol_status_t protocol_write_uint64",
-        )
-        implementation = implementation.replace(
-            "protocol_status_t protocol_read_uint64",
-            "static protocol_status_t protocol_read_uint64",
-        )
         return (
             "// Generated shared protocol runtime. Do not edit by hand.\n"
             '#include "protocol_runtime.h"\n\n'
@@ -548,6 +542,11 @@ class _CRenderer:
               return PROTOCOL_OK;
             }}
 
+            /** Encode a signed 64-bit value as eight little-endian two's-complement bytes. */
+            static inline PROTOCOL_UNUSED protocol_status_t protocol_write_int64(protocol_writer_t *writer, int64_t value) {{
+              return protocol_write_uint64(writer, (uint64_t)value);
+            }}
+
             static inline PROTOCOL_UNUSED protocol_status_t protocol_write_float(protocol_writer_t *writer, float value) {{
               uint32_t bits;
               memcpy(&bits, &value, sizeof(bits));
@@ -629,6 +628,18 @@ class _CRenderer:
                 *value |= (uint64_t)reader->buffer[reader->offset + index] << (index * 8u);
               }}
               reader->offset += 8;
+              return PROTOCOL_OK;
+            }}
+
+            /** Decode two's complement without an out-of-range unsigned-to-signed cast. */
+            static inline PROTOCOL_UNUSED protocol_status_t protocol_read_int64(protocol_reader_t *reader, int64_t *value) {{
+              uint64_t raw_value;
+              protocol_status_t status = protocol_read_uint64(reader, &raw_value);
+              if (status != PROTOCOL_OK) {{
+                return status;
+              }}
+              *value = raw_value <= INT64_MAX ? (int64_t)raw_value
+                  : -1 - (int64_t)(UINT64_MAX - raw_value);
               return PROTOCOL_OK;
             }}
 

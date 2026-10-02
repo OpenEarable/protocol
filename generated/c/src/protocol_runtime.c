@@ -55,7 +55,7 @@ protocol_status_t protocol_write_int32(protocol_writer_t *writer, int32_t value)
   return protocol_write_uint32(writer, (uint32_t)value);
 }
 
-static protocol_status_t protocol_write_uint64(protocol_writer_t *writer, uint64_t value) {
+protocol_status_t protocol_write_uint64(protocol_writer_t *writer, uint64_t value) {
   if (!protocol_can_write(writer, 8)) {
     return PROTOCOL_ERROR_BUFFER_TOO_SMALL;
   }
@@ -63,6 +63,11 @@ static protocol_status_t protocol_write_uint64(protocol_writer_t *writer, uint64
     writer->buffer[writer->offset++] = (uint8_t)((value >> (index * 8u)) & 0xffu);
   }
   return PROTOCOL_OK;
+}
+
+/** Encode a signed 64-bit value as eight little-endian two's-complement bytes. */
+protocol_status_t protocol_write_int64(protocol_writer_t *writer, int64_t value) {
+  return protocol_write_uint64(writer, (uint64_t)value);
 }
 
 protocol_status_t protocol_write_float(protocol_writer_t *writer, float value) {
@@ -137,7 +142,7 @@ protocol_status_t protocol_read_int32(protocol_reader_t *reader, int32_t *value)
   return PROTOCOL_OK;
 }
 
-static protocol_status_t protocol_read_uint64(protocol_reader_t *reader, uint64_t *value) {
+protocol_status_t protocol_read_uint64(protocol_reader_t *reader, uint64_t *value) {
   if (!protocol_can_read(reader, 8)) {
     return PROTOCOL_ERROR_INVALID_DATA;
   }
@@ -146,6 +151,18 @@ static protocol_status_t protocol_read_uint64(protocol_reader_t *reader, uint64_
     *value |= (uint64_t)reader->buffer[reader->offset + index] << (index * 8u);
   }
   reader->offset += 8;
+  return PROTOCOL_OK;
+}
+
+/** Decode two's complement without an out-of-range unsigned-to-signed cast. */
+protocol_status_t protocol_read_int64(protocol_reader_t *reader, int64_t *value) {
+  uint64_t raw_value;
+  protocol_status_t status = protocol_read_uint64(reader, &raw_value);
+  if (status != PROTOCOL_OK) {
+    return status;
+  }
+  *value = raw_value <= INT64_MAX ? (int64_t)raw_value
+      : -1 - (int64_t)(UINT64_MAX - raw_value);
   return PROTOCOL_OK;
 }
 
