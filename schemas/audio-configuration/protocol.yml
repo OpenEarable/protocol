@@ -1,0 +1,44 @@
+protocol: audio-configuration
+version: 1
+description: Configure ANC modes, microphone selection, and microphone gain.
+
+transport:
+  ble:
+    service_uuid: 1410df95-5f68-4ebb-a7c7-5e0fb9ae7557
+    characteristics:
+      - name: audio_mode
+        uuid: 1410df96-5f68-4ebb-a7c7-5e0fb9ae7557
+        properties: [read, write]
+      - name: microphone_selection
+        uuid: 1410df97-5f68-4ebb-a7c7-5e0fb9ae7557
+        properties: [read, write]
+      - name: audio_channel
+        uuid: 1410df98-5f68-4ebb-a7c7-5e0fb9ae7557
+        properties: [read]
+      - name: microphone_gain
+        uuid: 1410df99-5f68-4ebb-a7c7-5e0fb9ae7557
+        properties: [read, write]
+
+messages:
+  audio_mode:
+    description: Audio mode: 0 normal, 1 transparency, 2 ANC.
+    fields:
+      - name: mode
+        type: uint8
+  microphone_selection:
+    description: Encoder microphone: 0 left, 1 right.
+    fields:
+      - name: microphone
+        type: uint8
+  audio_channel:
+    description: Assigned audio channel.
+    fields:
+      - name: channel
+        type: uint8
+  microphone_gain:
+    description: Raw DMIC gain registers in outer then inner microphone order.
+    fields:
+      - name: outer
+        type: uint8
+      - name: inner
+        type: uint8

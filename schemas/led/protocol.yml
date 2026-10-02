@@ -1,0 +1,30 @@
+protocol: led
+version: 1
+description: Control LED color and indication mode.
+
+transport:
+  ble:
+    service_uuid: 81040a2e-4819-11ee-be56-0242ac120002
+    characteristics:
+      - name: rgb
+        uuid: 81040e7a-4819-11ee-be56-0242ac120002
+        properties: [write]
+      - name: state
+        uuid: 81040e7b-4819-11ee-be56-0242ac120002
+        properties: [write]
+
+messages:
+  rgb:
+    description: Custom color in red, green, blue order.
+    fields:
+      - name: red
+        type: uint8
+      - name: green
+        type: uint8
+      - name: blue
+        type: uint8
+  state:
+    description: Indication mode: 0 state indication, 1 custom.
+    fields:
+      - name: mode
+        type: uint8

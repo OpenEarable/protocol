@@ -1,0 +1,18 @@
+protocol: button
+version: 1
+description: Button press and release events.
+
+transport:
+  ble:
+    service_uuid: 29c10bdc-4773-11ee-be56-0242ac120002
+    characteristics:
+      - name: state
+        uuid: 29c10f38-4773-11ee-be56-0242ac120002
+        properties: [read, notify]
+
+messages:
+  state:
+    description: Button action: 0 released, 1 pressed.
+    fields:
+      - name: action
+        type: uint8
