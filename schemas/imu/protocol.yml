@@ -1,0 +1,26 @@
+protocol: imu
+version: 1
+description: BLE IMU samples for firmware 2.3.x. Logical values and all SD records remain nine float32 values.
+
+messages:
+  compact_sample:
+    description: BLE only from firmware 2.3.0; six signed raw motion readings followed by three unchanged compensated magnetometer floats. See README for exact scales and firmware selection.
+    fields:
+      - name: accel_x
+        type: int16
+      - name: accel_y
+        type: int16
+      - name: accel_z
+        type: int16
+      - name: gyro_x
+        type: int16
+      - name: gyro_y
+        type: int16
+      - name: gyro_z
+        type: int16
+      - name: mag_x
+        type: float
+      - name: mag_y
+        type: float
+      - name: mag_z
+        type: float
