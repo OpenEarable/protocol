@@ -8,10 +8,10 @@ transport:
     characteristics:
       - name: rgb
         uuid: 81040e7a-4819-11ee-be56-0242ac120002
-        properties: [write]
+        properties: [read, write, notify]
       - name: state
         uuid: 81040e7b-4819-11ee-be56-0242ac120002
-        properties: [write]
+        properties: [read, write, notify]
 
 messages:
   rgb:
