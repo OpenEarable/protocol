@@ -9,6 +9,7 @@ add_library(open_earable_protocols STATIC
     "src/audio_response_protocol.c"
     "src/button_protocol.c"
     "src/led_protocol.c"
+    "src/ppg_protocol.c"
     "src/wireless_audio_configuration_protocol.c"
 )
 add_library(OpenEarable::Protocols ALIAS open_earable_protocols)
