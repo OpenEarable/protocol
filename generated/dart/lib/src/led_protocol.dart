@@ -16,7 +16,9 @@ abstract final class LedBleUuids {
         name: 'rgb',
         uuid: rgbCharacteristicUuid,
         properties: {
+          ProtocolBleCharacteristicProperty.read,
           ProtocolBleCharacteristicProperty.write,
+          ProtocolBleCharacteristicProperty.notify,
         },
       );
 
@@ -29,7 +31,9 @@ abstract final class LedBleUuids {
         name: 'state',
         uuid: stateCharacteristicUuid,
         properties: {
+          ProtocolBleCharacteristicProperty.read,
           ProtocolBleCharacteristicProperty.write,
+          ProtocolBleCharacteristicProperty.notify,
         },
       );
 

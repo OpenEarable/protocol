@@ -9,11 +9,13 @@ Service UUID: `81040a2e-4819-11ee-be56-0242ac120002`.
 
 | Characteristic | UUID | Operations | Payload size |
 |---|---|---|---|
-| RGB | `81040e7a-4819-11ee-be56-0242ac120002` | Write | 3 bytes |
-| State | `81040e7b-4819-11ee-be56-0242ac120002` | Write | 1 byte |
+| RGB | `81040e7a-4819-11ee-be56-0242ac120002` | Read, write, notify | 3 bytes |
+| State | `81040e7b-4819-11ee-be56-0242ac120002` | Read, write, notify | 1 byte |
 
 Send the payload directly to its characteristic, without a message ID, length
-prefix, or version byte. Neither characteristic supports reads or notifications.
+prefix, or version byte. Firmware 2.3.x adds reads and notifications using the
+same payloads and UUIDs. Older firmware is write-only: clients must check the
+discovered characteristic properties before reading or subscribing.
 
 ## RGB color
 
@@ -41,8 +43,9 @@ Write a single byte to State:
 | `00` | Automatic state indication; firmware chooses colors and animations |
 | `01` | Custom mode; display the stored RGB color |
 
-Use only these two values. The firmware callback currently does not reject
-other numeric values, but they have no defined protocol meaning.
+Use only these two values. The firmware callback does not reject
+other numeric values on older versions; firmware 2.3.x rejects them with
+ATT Value Not Allowed and preserves the current mode.
 
 To show blue:
 
@@ -57,6 +60,19 @@ Use writes with response and offset zero. The firmware rejects RGB payloads
 that are not exactly three bytes, State payloads that are not exactly one byte,
 and writes with a nonzero offset. Successful writes have no separate response
 payload.
+
+## Readback and notifications
+
+Read RGB to retrieve the stored custom color, including while automatic mode
+is active. Read State to retrieve the configured indication mode. These are
+configuration values, not the instantaneous color of a pulse or a DFU override.
+At boot the custom color is black and the indication mode is automatic.
+
+Subscribe using each characteristic’s CCC descriptor, then read its current
+value. After a successful write, firmware notifies the accepted value to
+subscribers. Rejected writes leave the configuration unchanged and produce no
+notification. A successful write while unsubscribed remains valid. Settings
+are volatile and reset at reboot, as before.
 
 ## Generated bindings
 
