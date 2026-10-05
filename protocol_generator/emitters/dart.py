@@ -294,8 +294,15 @@ class _DartRuntimeRenderer:
                   int _offset = 0;
 
                   void _require(int length) {
-                    if (_offset + length > _bytes.length) {
+                    if (length < 0 || _offset + length > _bytes.length) {
                       throw const ProtocolFormatException('unexpected end of input');
+                    }
+                  }
+
+                  /// Rejects element counts that cannot fit in the remaining input.
+                  void requireElements(int count, int minimumSize) {
+                    if (count < 0 || (minimumSize > 0 && count > (_bytes.length - _offset) ~/ minimumSize)) {
+                      throw const ProtocolFormatException('array exceeds remaining input');
                     }
                   }
 
@@ -525,12 +532,44 @@ class _DartRenderer:
         if isinstance(field_type, BytesType):
             return "final Uint8List"
         if isinstance(field_type, ArrayType):
-            return f"final List<{DART_SCALAR_TYPES[field_type.item_type.name]}>"
+            return f"final List<{self._array_item_type(field_type)}>"
         if isinstance(field_type, MessageRefType):
             return f"final {self._class_name(field_type.name)}"
         if isinstance(field_type, UnionType):
             return f"final {self._union_interface_name(message, field)}"
         raise AssertionError(field_type)
+
+    def _array_item_type(self, array: ArrayType) -> str:
+        """Return the Dart value type of a scalar or record element."""
+        if isinstance(array.item_type, MessageRefType):
+            return self._class_name(array.item_type.name)
+        return DART_SCALAR_TYPES[array.item_type.name]
+
+    def _minimum_wire_size(self, field_type: FieldType) -> int:
+        """Compute a lower bound before allocating a decoded Dart record list."""
+        if isinstance(field_type, ScalarType):
+            if field_type.name in ("float", "double"):
+                return 4 if field_type.name == "float" else 8
+            return int(field_type.name[4:] if field_type.name.startswith("uint") else field_type.name[3:]) // 8
+        if isinstance(field_type, MessageRefType):
+            message = next(message for message in self.protocol.messages if message.name == field_type.name)
+            return sum(self._minimum_wire_size(field.type) for field in message.fields)
+        if isinstance(field_type, UnionType):
+            return self._minimum_wire_size(field_type.tag_type) + min(
+                self._minimum_wire_size(variant.message) for variant in field_type.variants)
+        return 0
+
+    def _array_read_expression(self, array: ArrayType) -> str:
+        """Decode one array element with its scalar or message codec."""
+        if isinstance(array.item_type, MessageRefType):
+            return f"{self._class_name(array.item_type.name)}._read(reader)"
+        return f"reader.{DART_CODEC_METHODS[array.item_type.name]}()"
+
+    def _array_write_statement(self, array: ArrayType) -> str:
+        """Encode one array element without introducing framing bytes."""
+        if isinstance(array.item_type, MessageRefType):
+            return "value._write(writer);"
+        return f"writer.{DART_CODEC_METHODS[array.item_type.name]}(value);"
 
     def _read_lines(self, message: Message) -> str:
         lines: list[str] = []
@@ -545,11 +584,12 @@ class _DartRenderer:
         if isinstance(field_type, BytesType):
             return [f"final {field.name} = reader.bytes({field_type.length_field});"]
         if isinstance(field_type, ArrayType):
-            item_type = DART_SCALAR_TYPES[field_type.item_type.name]
+            item_type = self._array_item_type(field_type)
             return [
+                f"reader.requireElements({field_type.length_field}, {self._minimum_wire_size(field_type.item_type)});",
                 f"final {field.name} = List<{item_type}>.generate(",
                 f"  {field_type.length_field},",
-                f"  (_) => reader.{DART_CODEC_METHODS[field_type.item_type.name]}(),",
+                f"  (_) => {self._array_read_expression(field_type)},",
                 ");",
             ]
         if isinstance(field_type, MessageRefType):
@@ -605,7 +645,7 @@ class _DartRenderer:
                 f"  throw ProtocolFormatException('{field.name} length does not match {field_type.length_field}');",
                 "}",
                 f"for (final value in {field.name}) {{",
-                f"  writer.{DART_CODEC_METHODS[field_type.item_type.name]}(value);",
+                f"  {self._array_write_statement(field_type)}",
                 "}",
             ]
         if isinstance(field_type, MessageRefType):

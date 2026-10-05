@@ -63,6 +63,10 @@ def load_protocol(path: pathlib.Path) -> Protocol:
             fields.append(Field(field_name, field_type))
             if isinstance(field_type, ScalarType) and field_type.name in INTEGER_SCALAR_TYPE_NAMES - {"uint64", "int64"}:
                 known_integer_fields.add(field_name)
+        field_names = {field.name for field in fields}
+        for field in fields:
+            if isinstance(field.type, (BytesType, ArrayType)) and field.name + "_capacity" in field_names:
+                raise SchemaError(f"{path}: {message_name}.{field.name}_capacity is reserved for decode storage")
         messages.append(
             Message(
                 name=message_name,
@@ -71,6 +75,7 @@ def load_protocol(path: pathlib.Path) -> Protocol:
             )
         )
 
+    messages = _order_messages(path, messages)
     return Protocol(
         name=name,
         version=version,
@@ -182,6 +187,8 @@ def parse_type(raw_type: str, message_names: set[str]) -> FieldType:
         item_type, length_field = array_match.groups()
         if item_type == "bytes":
             return BytesType(length_field)
+        if item_type in message_names:
+            return ArrayType(MessageRefType(item_type), length_field)
         if item_type not in SCALAR_TYPE_NAMES:
             raise SchemaError(f"unsupported array item type '{item_type}'")
         return ArrayType(ScalarType(item_type), length_field)
@@ -274,3 +281,35 @@ def _validate_field_type(
             f"{path}: {message_name}.{field_name} references length field "
             f"'{field_type.length_field}' which must be a previously defined integer of at most 32 bits"
         )
+
+
+def _order_messages(path: pathlib.Path, messages: list[Message]) -> list[Message]:
+    """Reject recursive wire models and put dependencies before their consumers."""
+    by_name = {message.name: message for message in messages}
+    visiting: set[str] = set()
+    ordered: list[Message] = []
+    visited: set[str] = set()
+
+    def visit(name: str) -> None:
+        """Visit nested message dependencies once, detecting recursion."""
+        if name in visiting:
+            raise SchemaError(f"{path}: recursive message reference involving '{name}'")
+        if name in visited:
+            return
+        visiting.add(name)
+        for field in by_name[name].fields:
+            field_type = field.type
+            if isinstance(field_type, ArrayType):
+                field_type = field_type.item_type
+            if isinstance(field_type, MessageRefType):
+                visit(field_type.name)
+            elif isinstance(field_type, UnionType):
+                for variant in field_type.variants:
+                    visit(variant.message.name)
+        visiting.remove(name)
+        visited.add(name)
+        ordered.append(by_name[name])
+
+    for message in messages:
+        visit(message.name)
+    return ordered

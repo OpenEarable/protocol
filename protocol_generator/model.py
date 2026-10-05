@@ -51,9 +51,9 @@ class BytesType:
 
 @dataclass(frozen=True)
 class ArrayType:
-    """A fixed-width scalar array whose length is controlled by another field."""
+    """An array of scalars or message records controlled by a preceding length field."""
 
-    item_type: ScalarType
+    item_type: ScalarType | MessageRefType
     length_field: str
 
 

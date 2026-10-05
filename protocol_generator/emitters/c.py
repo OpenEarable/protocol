@@ -282,6 +282,9 @@ class _CRenderer:
                 f"protocol_status_t {c_name}_decode({c_name}_t *message, "
                 "const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);\n\n"
             )
+        for message in self.protocol.messages:
+            c_name = self._c_message_name(message.name)
+            parts.append(f"/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */\nprotocol_status_t {c_name}_decode_bounded({c_name}_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);\n\n")
         parts.append("#ifdef __cplusplus\n}\n#endif\n\n")
         return "".join(parts)
 
@@ -373,6 +376,10 @@ class _CRenderer:
         body = [f"struct {c_name}_t {{"]
         for field in message.fields:
             body.extend(self._field_declaration(message, field))
+        for field in message.fields:
+            if isinstance(field.type, (BytesType, ArrayType)):
+                body.append(f"  /** Caller-owned decode capacity in {'bytes' if isinstance(field.type, BytesType) else 'elements'}; not encoded. */")
+                body.append(f"  size_t {field.name}_capacity;")
         body.append("};\n\n")
         return "".join(lines + [line + "\n" for line in body])
 
@@ -433,6 +440,12 @@ class _CRenderer:
             f"{pascal_case(message.name)} message for the {self.protocol.name} protocol."
         )
 
+    def _array_c_type(self, array: ArrayType) -> str:
+        """Return a scalar type or generated record struct type."""
+        if isinstance(array.item_type, MessageRefType):
+            return self._c_message_name(array.item_type.name) + "_t"
+        return C_SCALAR_TYPES[array.item_type.name]
+
     def _field_declaration(self, message: Message, field: Field) -> list[str]:
         field_type = field.type
         if isinstance(field_type, ScalarType):
@@ -440,7 +453,7 @@ class _CRenderer:
         if isinstance(field_type, BytesType):
             return [f"  uint8_t *{field.name};"]
         if isinstance(field_type, ArrayType):
-            return [f"  {C_SCALAR_TYPES[field_type.item_type.name]} *{field.name};"]
+            return [f"  {self._array_c_type(field_type)} *{field.name};"]
         if isinstance(field_type, MessageRefType):
             return [f"  {self._c_message_name(field_type.name)}_t {field.name};"]
         if isinstance(field_type, UnionType):
@@ -695,7 +708,7 @@ class _CRenderer:
             f"  return PROTOCOL_OK;\n"
             "}\n\n"
             f"static protocol_status_t {c_name}_read(protocol_reader_t *reader, "
-            f"{c_name}_t *message) {{\n"
+            f"{c_name}_t *message, bool bounded) {{\n"
             f"{_indent(self._c_read_lines(message), 2)}\n"
             f"  return PROTOCOL_OK;\n"
             "}\n\n"
@@ -714,7 +727,7 @@ class _CRenderer:
             f"protocol_status_t {c_name}_decode({c_name}_t *message, const uint8_t *buffer, "
             "size_t buffer_size, size_t *bytes_read) {\n"
             f"  protocol_reader_t reader = {{ buffer, buffer_size, 0 }};\n"
-            f"  protocol_status_t status = {c_name}_read(&reader, message);\n"
+            f"  protocol_status_t status = {c_name}_read(&reader, message, false);\n"
             f"  if (status != PROTOCOL_OK) {{\n"
             "    return status;\n"
             "  }\n"
@@ -723,6 +736,14 @@ class _CRenderer:
             "  }\n"
             f"  return PROTOCOL_OK;\n"
             "}\n\n"
+            f"protocol_status_t {c_name}_decode_bounded({c_name}_t *message, const uint8_t *buffer, "
+            "size_t buffer_size, size_t *bytes_read) {\n"
+            "  protocol_reader_t reader = { buffer, buffer_size, 0 };\n"
+            "  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;\n"
+            f"  protocol_status_t status = {c_name}_read(&reader, message, true);\n"
+            "  if (status != PROTOCOL_OK) return status;\n"
+            "  if (bytes_read != NULL) *bytes_read = reader.offset;\n"
+            "  return PROTOCOL_OK;\n}\n\n"
         )
 
     def _source_union_api(self, message: Message) -> str:
@@ -800,6 +821,14 @@ class _CRenderer:
             )
         return "\n".join(lines) + ("\n" if lines else "")
 
+    def _length_guards(self, message: Message, field: Field) -> list[str]:
+        """Reject negative signed lengths before indexing caller-owned storage."""
+        assert isinstance(field.type, (BytesType, ArrayType))
+        length = next(item for item in message.fields if item.name == field.type.length_field)
+        if isinstance(length.type, ScalarType) and length.type.name.startswith("int"):
+            return [f"if (message->{length.name} < 0) return PROTOCOL_ERROR_INVALID_DATA;"]
+        return []
+
     def _c_write_lines(self, message: Message) -> str:
         lines: list[str] = [f"protocol_status_t status;"]
         for field in message.fields:
@@ -814,14 +843,18 @@ class _CRenderer:
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, BytesType):
-            return [
+            return self._length_guards(message, field) + [
+                f"if (message->{field_type.length_field} && message->{field.name} == NULL) return PROTOCOL_ERROR_INVALID_DATA;",
                 f"status = protocol_write_bytes(writer, message->{field.name}, message->{field_type.length_field});",
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, ArrayType):
-            return [
-                f"for (size_t index = 0; index < message->{field_type.length_field}; ++index) {{",
-                f"  status = protocol_write_{field_type.item_type.name}(writer, message->{field.name}[index]);",
+            return self._length_guards(message, field) + [
+                f"if (message->{field_type.length_field} && message->{field.name} == NULL) return PROTOCOL_ERROR_INVALID_DATA;",
+                f"for (size_t index = 0; index < (size_t)message->{field_type.length_field}; ++index) {{",
+                (f"  status = {self._c_message_name(field_type.item_type.name)}_write(writer, &message->{field.name}[index]);"
+                 if isinstance(field_type.item_type, MessageRefType) else
+                 f"  status = protocol_write_{field_type.item_type.name}(writer, message->{field.name}[index]);"),
                 f"  if (status != PROTOCOL_OK) return status;",
                 "}",
             ]
@@ -853,7 +886,7 @@ class _CRenderer:
         raise AssertionError(field_type)
 
     def _c_read_lines(self, message: Message) -> str:
-        lines = [f"protocol_status_t status;"]
+        lines = ["protocol_status_t status;", "(void)bounded;"]
         for field in message.fields:
             lines.extend(self._c_read_field(message, field))
         return "\n".join(lines)
@@ -866,20 +899,27 @@ class _CRenderer:
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, BytesType):
-            return [
+            return self._length_guards(message, field) + [
+                f"if (bounded && (size_t)message->{field_type.length_field} > message->{field.name}_capacity) return PROTOCOL_ERROR_BUFFER_TOO_SMALL;",
+                f"if (message->{field_type.length_field} && message->{field.name} == NULL) return PROTOCOL_ERROR_INVALID_DATA;",
                 f"status = protocol_read_bytes(reader, message->{field.name}, message->{field_type.length_field});",
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, ArrayType):
-            return [
-                f"for (size_t index = 0; index < message->{field_type.length_field}; ++index) {{",
-                f"  status = protocol_read_{field_type.item_type.name}(reader, &message->{field.name}[index]);",
+            check = "true" if isinstance(field_type.item_type, MessageRefType) else "bounded"
+            return self._length_guards(message, field) + [
+                f"if ({check} && (size_t)message->{field_type.length_field} > message->{field.name}_capacity) return PROTOCOL_ERROR_BUFFER_TOO_SMALL;",
+                f"if (message->{field_type.length_field} && message->{field.name} == NULL) return PROTOCOL_ERROR_INVALID_DATA;",
+                f"for (size_t index = 0; index < (size_t)message->{field_type.length_field}; ++index) {{",
+                (f"  status = {self._c_message_name(field_type.item_type.name)}_read(reader, &message->{field.name}[index], true);"
+                 if isinstance(field_type.item_type, MessageRefType) else
+                 f"  status = protocol_read_{field_type.item_type.name}(reader, &message->{field.name}[index]);"),
                 f"  if (status != PROTOCOL_OK) return status;",
                 "}",
             ]
         if isinstance(field_type, MessageRefType):
             return [
-                f"status = {self._c_message_name(field_type.name)}_read(reader, &message->{field.name});",
+                f"status = {self._c_message_name(field_type.name)}_read(reader, &message->{field.name}, bounded);",
                 f"if (status != PROTOCOL_OK) return status;",
             ]
         if isinstance(field_type, UnionType):
@@ -898,7 +938,7 @@ class _CRenderer:
                     [
                         f"case {self._union_enum_constant(message, field, variant.message.name)}:",
                         f"  status = {self._c_message_name(variant.message.name)}_read(reader, "
-                        f"&message->{field.name}.{variant.message.name});",
+                        f"&message->{field.name}.{variant.message.name}, bounded);",
                         f"  if (status != PROTOCOL_OK) return status;",
                         "  break;",
                     ]
