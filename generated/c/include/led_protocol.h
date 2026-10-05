@@ -48,6 +48,12 @@ protocol_status_t led_state_encode(const led_state_t *message, uint8_t *buffer, 
  */
 protocol_status_t led_state_decode(led_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t led_rgb_decode_bounded(led_rgb_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t led_state_decode_bounded(led_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
 #ifdef __cplusplus
 }
 #endif

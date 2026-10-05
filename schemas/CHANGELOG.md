@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+* added arrays of message records, explicit C decode capacities and bounded
+  decode APIs, and the power-saving protocol
+
 * added `uint64` and `int64` scalar and array support; Dart uses `BigInt`
   to preserve the full range and rejects values outside the wire type range
 

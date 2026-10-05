@@ -8,8 +8,9 @@ static protocol_status_t button_state_write(protocol_writer_t *writer, const but
   return PROTOCOL_OK;
 }
 
-static protocol_status_t button_state_read(protocol_reader_t *reader, button_state_t *message) {
+static protocol_status_t button_state_read(protocol_reader_t *reader, button_state_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->action);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -29,13 +30,22 @@ protocol_status_t button_state_encode(const button_state_t *message, uint8_t *bu
 
 protocol_status_t button_state_decode(button_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = button_state_read(&reader, message);
+  protocol_status_t status = button_state_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t button_state_decode_bounded(button_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = button_state_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 

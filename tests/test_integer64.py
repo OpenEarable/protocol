@@ -50,11 +50,11 @@ class Integer64Tests(unittest.TestCase):
                 c += f'''{{
                   const uint8_t expected[] = {{{values}}};
                   int64_t samples[] = {{INT64_MIN, INT64_MAX}};
-                  integer64_values_t message = {{UINT64_C({unsigned}), {signed_literal}, 2, samples}};
+                  integer64_values_t message = {{UINT64_C({unsigned}), {signed_literal}, 2, samples, 2}};
                   uint8_t bytes[sizeof(expected)]; size_t used;
                   if (integer64_values_encode(&message, bytes, sizeof(bytes), &used) != PROTOCOL_OK || used != sizeof(expected) || memcmp(bytes, expected, used)) return 1;
                   message.unsigned_value = 0; message.signed_value = 0; samples[0] = 0; samples[1] = 0;
-                  if (integer64_values_decode(&message, expected, sizeof(expected), &used) != PROTOCOL_OK || used != sizeof(expected)) return 2;
+                  if (integer64_values_decode_bounded(&message, expected, sizeof(expected), &used) != PROTOCOL_OK || used != sizeof(expected)) return 2;
                   if (message.unsigned_value != UINT64_C({unsigned}) || message.signed_value != {signed_literal} || samples[0] != INT64_MIN || samples[1] != INT64_MAX) return 3;
                   for (size_t length = 0; length < sizeof(expected); length++) {{
                     if (integer64_values_decode(&message, expected, length, NULL) == PROTOCOL_OK) return 4;

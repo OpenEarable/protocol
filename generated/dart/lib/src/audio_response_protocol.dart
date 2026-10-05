@@ -285,6 +285,7 @@ class AudioResponseTransferChunk {
     final transfer_id = reader.uint16();
     final sample_offset = reader.uint32();
     final sample_count = reader.uint16();
+    reader.requireElements(sample_count, 2);
     final samples = List<int>.generate(
       sample_count,
       (_) => reader.int16(),
@@ -379,6 +380,7 @@ class AudioResponseConfig {
     final transfer_id = reader.uint16();
     final volume = reader.float32();
     final points = reader.uint8();
+    reader.requireElements(points, 2);
     final frequencies = List<int>.generate(
       points,
       (_) => reader.uint16(),
@@ -429,10 +431,12 @@ class AudioResponseResult {
   static AudioResponseResult _read(ProtocolReader reader) {
     final id = reader.uint8();
     final points = reader.uint8();
+    reader.requireElements(points, 2);
     final frequencies = List<int>.generate(
       points,
       (_) => reader.uint16(),
     );
+    reader.requireElements(points, 2);
     final response = List<int>.generate(
       points,
       (_) => reader.uint16(),

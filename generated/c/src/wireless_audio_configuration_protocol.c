@@ -8,8 +8,9 @@ static protocol_status_t wireless_audio_configuration_controller_default_acl_pol
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_controller_default_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_controller_default_acl_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_controller_default_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_controller_default_acl_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->reserved);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -29,13 +30,22 @@ protocol_status_t wireless_audio_configuration_controller_default_acl_policy_enc
 
 protocol_status_t wireless_audio_configuration_controller_default_acl_policy_decode(wireless_audio_configuration_controller_default_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_controller_default_acl_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_controller_default_acl_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_controller_default_acl_policy_decode_bounded(wireless_audio_configuration_controller_default_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_controller_default_acl_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -50,8 +60,9 @@ static protocol_status_t wireless_audio_configuration_fixed_acl_policy_write(pro
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_fixed_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_fixed_acl_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_fixed_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_fixed_acl_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->interval_us);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint16(reader, &message->peripheral_latency);
@@ -75,13 +86,22 @@ protocol_status_t wireless_audio_configuration_fixed_acl_policy_encode(const wir
 
 protocol_status_t wireless_audio_configuration_fixed_acl_policy_decode(wireless_audio_configuration_fixed_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_fixed_acl_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_fixed_acl_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_fixed_acl_policy_decode_bounded(wireless_audio_configuration_fixed_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_fixed_acl_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -98,8 +118,9 @@ static protocol_status_t wireless_audio_configuration_preferred_range_acl_policy
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_preferred_range_acl_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_preferred_range_acl_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->minimum_interval_us);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->maximum_interval_us);
@@ -125,13 +146,22 @@ protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_encode
 
 protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_decode(wireless_audio_configuration_preferred_range_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_preferred_range_acl_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_preferred_range_acl_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_decode_bounded(wireless_audio_configuration_preferred_range_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_preferred_range_acl_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -156,8 +186,9 @@ static protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_adaptive_linear_acl_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_read(protocol_reader_t *reader, wireless_audio_configuration_adaptive_linear_acl_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->minimum_interval_us);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->maximum_interval_us);
@@ -191,13 +222,22 @@ protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_encode
 
 protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_decode(wireless_audio_configuration_adaptive_linear_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_adaptive_linear_acl_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_adaptive_linear_acl_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_decode_bounded(wireless_audio_configuration_adaptive_linear_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_adaptive_linear_acl_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -314,27 +354,28 @@ static protocol_status_t wireless_audio_configuration_acl_connection_policy_writ
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_acl_connection_policy_read(protocol_reader_t *reader, wireless_audio_configuration_acl_connection_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_acl_connection_policy_read(protocol_reader_t *reader, wireless_audio_configuration_acl_connection_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   uint8_t raw_type;
   status = protocol_read_uint8(reader, &raw_type);
   if (status != PROTOCOL_OK) return status;
   message->type = (wireless_audio_configuration_acl_connection_policy_type_t)raw_type;
   switch (message->type) {
   case WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_CONTROLLER_DEFAULT_ACL_POLICY:
-    status = wireless_audio_configuration_controller_default_acl_policy_read(reader, &message->policy.controller_default_acl_policy);
+    status = wireless_audio_configuration_controller_default_acl_policy_read(reader, &message->policy.controller_default_acl_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_FIXED_ACL_POLICY:
-    status = wireless_audio_configuration_fixed_acl_policy_read(reader, &message->policy.fixed_acl_policy);
+    status = wireless_audio_configuration_fixed_acl_policy_read(reader, &message->policy.fixed_acl_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_PREFERRED_RANGE_ACL_POLICY:
-    status = wireless_audio_configuration_preferred_range_acl_policy_read(reader, &message->policy.preferred_range_acl_policy);
+    status = wireless_audio_configuration_preferred_range_acl_policy_read(reader, &message->policy.preferred_range_acl_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_ACL_CONNECTION_POLICY_ADAPTIVE_LINEAR_ACL_POLICY:
-    status = wireless_audio_configuration_adaptive_linear_acl_policy_read(reader, &message->policy.adaptive_linear_acl_policy);
+    status = wireless_audio_configuration_adaptive_linear_acl_policy_read(reader, &message->policy.adaptive_linear_acl_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   default:
@@ -357,13 +398,22 @@ protocol_status_t wireless_audio_configuration_acl_connection_policy_encode(cons
 
 protocol_status_t wireless_audio_configuration_acl_connection_policy_decode(wireless_audio_configuration_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_acl_connection_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_acl_connection_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_acl_connection_policy_decode_bounded(wireless_audio_configuration_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_acl_connection_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -374,8 +424,9 @@ static protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_automatic_acl_radio_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_automatic_acl_radio_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->reserved);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -395,13 +446,22 @@ protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_encode
 
 protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_decode(wireless_audio_configuration_automatic_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_automatic_acl_radio_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_automatic_acl_radio_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_decode_bounded(wireless_audio_configuration_automatic_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_automatic_acl_radio_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -418,8 +478,9 @@ static protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_preferred_acl_radio_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_preferred_acl_radio_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->transmit_phy_mask);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->receive_phy_mask);
@@ -445,13 +506,22 @@ protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_encode
 
 protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_decode(wireless_audio_configuration_preferred_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_preferred_acl_radio_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_preferred_acl_radio_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_decode_bounded(wireless_audio_configuration_preferred_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_preferred_acl_radio_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -522,19 +592,20 @@ static protocol_status_t wireless_audio_configuration_acl_radio_policy_write(pro
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_acl_radio_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_acl_radio_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   uint8_t raw_type;
   status = protocol_read_uint8(reader, &raw_type);
   if (status != PROTOCOL_OK) return status;
   message->type = (wireless_audio_configuration_acl_radio_policy_type_t)raw_type;
   switch (message->type) {
   case WIRELESS_AUDIO_CONFIGURATION_ACL_RADIO_POLICY_AUTOMATIC_ACL_RADIO_POLICY:
-    status = wireless_audio_configuration_automatic_acl_radio_policy_read(reader, &message->policy.automatic_acl_radio_policy);
+    status = wireless_audio_configuration_automatic_acl_radio_policy_read(reader, &message->policy.automatic_acl_radio_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_ACL_RADIO_POLICY_PREFERRED_ACL_RADIO_POLICY:
-    status = wireless_audio_configuration_preferred_acl_radio_policy_read(reader, &message->policy.preferred_acl_radio_policy);
+    status = wireless_audio_configuration_preferred_acl_radio_policy_read(reader, &message->policy.preferred_acl_radio_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   default:
@@ -557,13 +628,22 @@ protocol_status_t wireless_audio_configuration_acl_radio_policy_encode(const wir
 
 protocol_status_t wireless_audio_configuration_acl_radio_policy_decode(wireless_audio_configuration_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_acl_radio_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_acl_radio_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_acl_radio_policy_decode_bounded(wireless_audio_configuration_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_acl_radio_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -590,8 +670,9 @@ static protocol_status_t wireless_audio_configuration_unicast_server_qos_prefere
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_read(protocol_reader_t *reader, wireless_audio_configuration_unicast_server_qos_preferences_t *message) {
+static protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_read(protocol_reader_t *reader, wireless_audio_configuration_unicast_server_qos_preferences_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->direction_mask);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->unframed_supported);
@@ -627,13 +708,22 @@ protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_en
 
 protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_decode(wireless_audio_configuration_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_unicast_server_qos_preferences_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_unicast_server_qos_preferences_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_decode_bounded(wireless_audio_configuration_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_unicast_server_qos_preferences_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -646,11 +736,12 @@ static protocol_status_t wireless_audio_configuration_set_acl_connection_policy_
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_set_acl_connection_policy_read(protocol_reader_t *reader, wireless_audio_configuration_set_acl_connection_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_set_acl_connection_policy_read(protocol_reader_t *reader, wireless_audio_configuration_set_acl_connection_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->persist);
   if (status != PROTOCOL_OK) return status;
-  status = wireless_audio_configuration_acl_connection_policy_read(reader, &message->policy);
+  status = wireless_audio_configuration_acl_connection_policy_read(reader, &message->policy, bounded);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
 }
@@ -669,13 +760,22 @@ protocol_status_t wireless_audio_configuration_set_acl_connection_policy_encode(
 
 protocol_status_t wireless_audio_configuration_set_acl_connection_policy_decode(wireless_audio_configuration_set_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_set_acl_connection_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_set_acl_connection_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_set_acl_connection_policy_decode_bounded(wireless_audio_configuration_set_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_set_acl_connection_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -688,11 +788,12 @@ static protocol_status_t wireless_audio_configuration_set_acl_radio_policy_write
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_set_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_set_acl_radio_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_set_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_set_acl_radio_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->persist);
   if (status != PROTOCOL_OK) return status;
-  status = wireless_audio_configuration_acl_radio_policy_read(reader, &message->policy);
+  status = wireless_audio_configuration_acl_radio_policy_read(reader, &message->policy, bounded);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
 }
@@ -711,13 +812,22 @@ protocol_status_t wireless_audio_configuration_set_acl_radio_policy_encode(const
 
 protocol_status_t wireless_audio_configuration_set_acl_radio_policy_decode(wireless_audio_configuration_set_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_set_acl_radio_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_set_acl_radio_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_set_acl_radio_policy_decode_bounded(wireless_audio_configuration_set_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_set_acl_radio_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -730,11 +840,12 @@ static protocol_status_t wireless_audio_configuration_set_unicast_server_qos_pre
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_read(protocol_reader_t *reader, wireless_audio_configuration_set_unicast_server_qos_preferences_t *message) {
+static protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_read(protocol_reader_t *reader, wireless_audio_configuration_set_unicast_server_qos_preferences_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->persist);
   if (status != PROTOCOL_OK) return status;
-  status = wireless_audio_configuration_unicast_server_qos_preferences_read(reader, &message->preferences);
+  status = wireless_audio_configuration_unicast_server_qos_preferences_read(reader, &message->preferences, bounded);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
 }
@@ -753,13 +864,22 @@ protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preference
 
 protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_decode(wireless_audio_configuration_set_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_set_unicast_server_qos_preferences_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_set_unicast_server_qos_preferences_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_decode_bounded(wireless_audio_configuration_set_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_set_unicast_server_qos_preferences_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -770,8 +890,9 @@ static protocol_status_t wireless_audio_configuration_get_configuration_write(pr
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_get_configuration_read(protocol_reader_t *reader, wireless_audio_configuration_get_configuration_t *message) {
+static protocol_status_t wireless_audio_configuration_get_configuration_read(protocol_reader_t *reader, wireless_audio_configuration_get_configuration_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->section);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -791,13 +912,22 @@ protocol_status_t wireless_audio_configuration_get_configuration_encode(const wi
 
 protocol_status_t wireless_audio_configuration_get_configuration_decode(wireless_audio_configuration_get_configuration_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_get_configuration_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_get_configuration_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_get_configuration_decode_bounded(wireless_audio_configuration_get_configuration_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_get_configuration_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -808,8 +938,9 @@ static protocol_status_t wireless_audio_configuration_restore_defaults_write(pro
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_restore_defaults_read(protocol_reader_t *reader, wireless_audio_configuration_restore_defaults_t *message) {
+static protocol_status_t wireless_audio_configuration_restore_defaults_read(protocol_reader_t *reader, wireless_audio_configuration_restore_defaults_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->section_mask);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -829,13 +960,22 @@ protocol_status_t wireless_audio_configuration_restore_defaults_encode(const wir
 
 protocol_status_t wireless_audio_configuration_restore_defaults_decode(wireless_audio_configuration_restore_defaults_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_restore_defaults_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_restore_defaults_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_restore_defaults_decode_bounded(wireless_audio_configuration_restore_defaults_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_restore_defaults_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -947,8 +1087,9 @@ static protocol_status_t wireless_audio_configuration_configuration_command_writ
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_configuration_command_read(protocol_reader_t *reader, wireless_audio_configuration_configuration_command_t *message) {
+static protocol_status_t wireless_audio_configuration_configuration_command_read(protocol_reader_t *reader, wireless_audio_configuration_configuration_command_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->request_id);
   if (status != PROTOCOL_OK) return status;
   uint8_t raw_type;
@@ -957,23 +1098,23 @@ static protocol_status_t wireless_audio_configuration_configuration_command_read
   message->type = (wireless_audio_configuration_configuration_command_type_t)raw_type;
   switch (message->type) {
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_ACL_CONNECTION_POLICY:
-    status = wireless_audio_configuration_set_acl_connection_policy_read(reader, &message->operation.set_acl_connection_policy);
+    status = wireless_audio_configuration_set_acl_connection_policy_read(reader, &message->operation.set_acl_connection_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_ACL_RADIO_POLICY:
-    status = wireless_audio_configuration_set_acl_radio_policy_read(reader, &message->operation.set_acl_radio_policy);
+    status = wireless_audio_configuration_set_acl_radio_policy_read(reader, &message->operation.set_acl_radio_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_SET_UNICAST_SERVER_QOS_PREFERENCES:
-    status = wireless_audio_configuration_set_unicast_server_qos_preferences_read(reader, &message->operation.set_unicast_server_qos_preferences);
+    status = wireless_audio_configuration_set_unicast_server_qos_preferences_read(reader, &message->operation.set_unicast_server_qos_preferences, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_GET_CONFIGURATION:
-    status = wireless_audio_configuration_get_configuration_read(reader, &message->operation.get_configuration);
+    status = wireless_audio_configuration_get_configuration_read(reader, &message->operation.get_configuration, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_COMMAND_RESTORE_DEFAULTS:
-    status = wireless_audio_configuration_restore_defaults_read(reader, &message->operation.restore_defaults);
+    status = wireless_audio_configuration_restore_defaults_read(reader, &message->operation.restore_defaults, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   default:
@@ -996,13 +1137,22 @@ protocol_status_t wireless_audio_configuration_configuration_command_encode(cons
 
 protocol_status_t wireless_audio_configuration_configuration_command_decode(wireless_audio_configuration_configuration_command_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_configuration_command_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_configuration_command_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_configuration_command_decode_bounded(wireless_audio_configuration_configuration_command_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_configuration_command_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1015,11 +1165,12 @@ static protocol_status_t wireless_audio_configuration_configured_acl_connection_
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_read(protocol_reader_t *reader, wireless_audio_configuration_configured_acl_connection_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_read(protocol_reader_t *reader, wireless_audio_configuration_configured_acl_connection_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->persisted);
   if (status != PROTOCOL_OK) return status;
-  status = wireless_audio_configuration_acl_connection_policy_read(reader, &message->policy);
+  status = wireless_audio_configuration_acl_connection_policy_read(reader, &message->policy, bounded);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
 }
@@ -1038,13 +1189,22 @@ protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_
 
 protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_decode(wireless_audio_configuration_configured_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_configured_acl_connection_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_configured_acl_connection_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_decode_bounded(wireless_audio_configuration_configured_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_configured_acl_connection_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1057,11 +1217,12 @@ static protocol_status_t wireless_audio_configuration_configured_acl_radio_polic
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_configured_acl_radio_policy_t *message) {
+static protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_read(protocol_reader_t *reader, wireless_audio_configuration_configured_acl_radio_policy_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->persisted);
   if (status != PROTOCOL_OK) return status;
-  status = wireless_audio_configuration_acl_radio_policy_read(reader, &message->policy);
+  status = wireless_audio_configuration_acl_radio_policy_read(reader, &message->policy, bounded);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
 }
@@ -1080,13 +1241,22 @@ protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_encod
 
 protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_decode(wireless_audio_configuration_configured_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_configured_acl_radio_policy_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_configured_acl_radio_policy_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_decode_bounded(wireless_audio_configuration_configured_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_configured_acl_radio_policy_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1099,11 +1269,12 @@ static protocol_status_t wireless_audio_configuration_configured_unicast_server_
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_read(protocol_reader_t *reader, wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message) {
+static protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_read(protocol_reader_t *reader, wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->persisted);
   if (status != PROTOCOL_OK) return status;
-  status = wireless_audio_configuration_unicast_server_qos_preferences_read(reader, &message->preferences);
+  status = wireless_audio_configuration_unicast_server_qos_preferences_read(reader, &message->preferences, bounded);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
 }
@@ -1122,13 +1293,22 @@ protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_pre
 
 protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_decode(wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_configured_unicast_server_qos_preferences_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_configured_unicast_server_qos_preferences_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_decode_bounded(wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_configured_unicast_server_qos_preferences_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1145,8 +1325,9 @@ static protocol_status_t wireless_audio_configuration_command_result_write(proto
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_command_result_read(protocol_reader_t *reader, wireless_audio_configuration_command_result_t *message) {
+static protocol_status_t wireless_audio_configuration_command_result_read(protocol_reader_t *reader, wireless_audio_configuration_command_result_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->status);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->error_domain);
@@ -1172,13 +1353,22 @@ protocol_status_t wireless_audio_configuration_command_result_encode(const wirel
 
 protocol_status_t wireless_audio_configuration_command_result_decode(wireless_audio_configuration_command_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_command_result_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_command_result_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_command_result_decode_bounded(wireless_audio_configuration_command_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_command_result_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1273,8 +1463,9 @@ static protocol_status_t wireless_audio_configuration_configuration_response_wri
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_configuration_response_read(protocol_reader_t *reader, wireless_audio_configuration_configuration_response_t *message) {
+static protocol_status_t wireless_audio_configuration_configuration_response_read(protocol_reader_t *reader, wireless_audio_configuration_configuration_response_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->request_id);
   if (status != PROTOCOL_OK) return status;
   uint8_t raw_type;
@@ -1283,19 +1474,19 @@ static protocol_status_t wireless_audio_configuration_configuration_response_rea
   message->type = (wireless_audio_configuration_configuration_response_type_t)raw_type;
   switch (message->type) {
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_COMMAND_RESULT:
-    status = wireless_audio_configuration_command_result_read(reader, &message->payload.command_result);
+    status = wireless_audio_configuration_command_result_read(reader, &message->payload.command_result, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_ACL_CONNECTION_POLICY:
-    status = wireless_audio_configuration_configured_acl_connection_policy_read(reader, &message->payload.configured_acl_connection_policy);
+    status = wireless_audio_configuration_configured_acl_connection_policy_read(reader, &message->payload.configured_acl_connection_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_ACL_RADIO_POLICY:
-    status = wireless_audio_configuration_configured_acl_radio_policy_read(reader, &message->payload.configured_acl_radio_policy);
+    status = wireless_audio_configuration_configured_acl_radio_policy_read(reader, &message->payload.configured_acl_radio_policy, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case WIRELESS_AUDIO_CONFIGURATION_CONFIGURATION_RESPONSE_CONFIGURED_UNICAST_SERVER_QOS_PREFERENCES:
-    status = wireless_audio_configuration_configured_unicast_server_qos_preferences_read(reader, &message->payload.configured_unicast_server_qos_preferences);
+    status = wireless_audio_configuration_configured_unicast_server_qos_preferences_read(reader, &message->payload.configured_unicast_server_qos_preferences, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   default:
@@ -1318,13 +1509,22 @@ protocol_status_t wireless_audio_configuration_configuration_response_encode(con
 
 protocol_status_t wireless_audio_configuration_configuration_response_decode(wireless_audio_configuration_configuration_response_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_configuration_response_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_configuration_response_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_configuration_response_decode_bounded(wireless_audio_configuration_configuration_response_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_configuration_response_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1387,8 +1587,9 @@ static protocol_status_t wireless_audio_configuration_runtime_state_write(protoc
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_runtime_state_read(protocol_reader_t *reader, wireless_audio_configuration_runtime_state_t *message) {
+static protocol_status_t wireless_audio_configuration_runtime_state_read(protocol_reader_t *reader, wireless_audio_configuration_runtime_state_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->sequence);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->validity_flags);
@@ -1460,13 +1661,22 @@ protocol_status_t wireless_audio_configuration_runtime_state_encode(const wirele
 
 protocol_status_t wireless_audio_configuration_runtime_state_decode(wireless_audio_configuration_runtime_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_runtime_state_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_runtime_state_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_runtime_state_decode_bounded(wireless_audio_configuration_runtime_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_runtime_state_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -1517,8 +1727,9 @@ static protocol_status_t wireless_audio_configuration_capabilities_write(protoco
   return PROTOCOL_OK;
 }
 
-static protocol_status_t wireless_audio_configuration_capabilities_read(protocol_reader_t *reader, wireless_audio_configuration_capabilities_t *message) {
+static protocol_status_t wireless_audio_configuration_capabilities_read(protocol_reader_t *reader, wireless_audio_configuration_capabilities_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->protocol_version);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->supported_section_mask);
@@ -1578,13 +1789,22 @@ protocol_status_t wireless_audio_configuration_capabilities_encode(const wireles
 
 protocol_status_t wireless_audio_configuration_capabilities_decode(wireless_audio_configuration_capabilities_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = wireless_audio_configuration_capabilities_read(&reader, message);
+  protocol_status_t status = wireless_audio_configuration_capabilities_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t wireless_audio_configuration_capabilities_decode_bounded(wireless_audio_configuration_capabilities_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = wireless_audio_configuration_capabilities_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 

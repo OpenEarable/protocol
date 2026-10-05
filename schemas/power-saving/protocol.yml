@@ -1,0 +1,35 @@
+protocol: power-saving
+version: 1
+description: Select automatic power-off behavior and discover supported modes.
+transport:
+  ble:
+    service_uuid: d63fd1f0-5f68-4ebb-a7c7-5e0fb9ae7557
+    characteristics:
+      - name: mode
+        uuid: d63fd1f1-5f68-4ebb-a7c7-5e0fb9ae7557
+        properties: [read, write]
+      - name: supported_modes
+        uuid: d63fd1f2-5f68-4ebb-a7c7-5e0fb9ae7557
+        properties: [read]
+messages:
+  mode:
+    description: Selected automatic power-off mode identified by its supported-mode ID.
+    fields:
+      - name: id
+        type: uint8
+  mode_description:
+    description: Supported mode ID and its display name without a terminating NUL.
+    fields:
+      - name: id
+        type: uint8
+      - name: name_length
+        type: uint8
+      - name: name
+        type: bytes[name_length]
+  supported_modes:
+    description: Supported automatic power-off modes in display order.
+    fields:
+      - name: count
+        type: uint8
+      - name: modes
+        type: mode_description[count]

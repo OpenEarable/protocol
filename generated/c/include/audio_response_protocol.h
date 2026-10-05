@@ -74,6 +74,8 @@ struct audio_response_transfer_chunk_t {
   uint32_t sample_offset;
   uint16_t sample_count;
   int16_t *samples;
+  /** Caller-owned decode capacity in elements; not encoded. */
+  size_t samples_capacity;
 };
 
 
@@ -99,6 +101,8 @@ struct audio_response_config_t {
   float volume;
   uint8_t points;
   uint16_t *frequencies;
+  /** Caller-owned decode capacity in elements; not encoded. */
+  size_t frequencies_capacity;
 };
 
 
@@ -112,6 +116,10 @@ struct audio_response_result_t {
   uint8_t points;
   uint16_t *frequencies;
   uint16_t *response;
+  /** Caller-owned decode capacity in elements; not encoded. */
+  size_t frequencies_capacity;
+  /** Caller-owned decode capacity in elements; not encoded. */
+  size_t response_capacity;
 };
 
 
@@ -226,6 +234,30 @@ protocol_status_t audio_response_result_encode(const audio_response_result_t *me
  * data. Each point represents a frequency and its corresponding response value.
  */
 protocol_status_t audio_response_result_decode(audio_response_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_transfer_start_decode_bounded(audio_response_transfer_start_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_transfer_commit_decode_bounded(audio_response_transfer_commit_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_transfer_abort_decode_bounded(audio_response_transfer_abort_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_transfer_control_decode_bounded(audio_response_transfer_control_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_transfer_chunk_decode_bounded(audio_response_transfer_chunk_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_transfer_status_decode_bounded(audio_response_transfer_status_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_config_decode_bounded(audio_response_config_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_response_result_decode_bounded(audio_response_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
 #ifdef __cplusplus
 }

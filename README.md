@@ -182,6 +182,7 @@ Supported dynamic field types:
 - `bytes[length_field]` for variable-length byte payloads.
 - `uint16[length_field]` and other scalar arrays for variable-length arrays.
 - `float[length_field]` and `double[length_field]` for floating-point arrays.
+- `message_name[length_field]` for arrays of nested message records.
 
 Length fields must be integer fields of at most 32 bits and must appear before the dynamic field
 that references them.
@@ -212,8 +213,20 @@ the selected payload type.
 ## C Decode Ownership
 
 Generated C structs use pointers for variable-length byte and array fields.
-The caller owns that memory and must allocate enough space before calling a
-decode function. The decoder fills the caller-provided buffers and reports
+The caller owns that memory. Dynamic fields also expose a `size_t
+<field>_capacity` member in C (not part of the wire payload). For byte fields it
+counts bytes; for scalar and record arrays it counts elements. Initialize every
+destination pointer and its capacity before using `*_decode_bounded`. Each
+record slot must have its own nested buffers initialized. The decoder checks
+capacities before writing and returns `PROTOCOL_ERROR_BUFFER_TOO_SMALL` for
+insufficient storage, without allocating memory. Output can be partially
+modified on failure; discard it unless decoding succeeds.
+
+Existing `*_decode` entry points retain caller-managed capacity behavior for
+legacy byte/scalar arrays. Record arrays always check their capacity and use
+bounded decoding for their elements, including through `*_decode`. Prefer
+`*_decode_bounded` for new code. Capacities are ignored when encoding. Rebuild
+C consumers after regeneration because the generated structs have new members. The decoder fills the caller-provided buffers and reports
 `PROTOCOL_ERROR_INVALID_DATA` if the input is truncated or has an unknown union
 tag.
 Compile `protocol_runtime.c` once and link it together with all generated
@@ -230,3 +243,34 @@ consumers.
 See [`generated/c/README.md`](generated/c/README.md) for general usage and
 [`docs/open-earable-2-integration.md`](docs/open-earable-2-integration.md) for
 explicit firmware integration.
+
+## Arrays of records
+
+Declare a record as a message, then reference it as an array element:
+
+```yaml
+messages:
+  mode:
+    fields:
+      - name: id
+        type: uint8
+      - name: name_length
+        type: uint8
+      - name: name
+        type: bytes[name_length]
+  supported_modes:
+    fields:
+      - name: count
+        type: uint8
+      - name: modes
+        type: mode[count]
+```
+
+The wire format is the count followed by the records in order. No extra record
+size, discriminator, or padding is inserted. Dart emits a list of record
+objects and checks that its length matches `count` during encoding. C emits a
+pointer to record structs and `modes_capacity` for decoding. The schema loader
+orders dependencies before their consumers and rejects direct or indirect
+recursive references. Message declaration order does not change field order.
+See the [power-saving protocol](schemas/power-saving/README.md) for a complete
+BLE example.

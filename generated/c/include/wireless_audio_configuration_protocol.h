@@ -686,6 +686,72 @@ protocol_status_t wireless_audio_configuration_capabilities_encode(const wireles
  */
 protocol_status_t wireless_audio_configuration_capabilities_decode(wireless_audio_configuration_capabilities_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_controller_default_acl_policy_decode_bounded(wireless_audio_configuration_controller_default_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_fixed_acl_policy_decode_bounded(wireless_audio_configuration_fixed_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_preferred_range_acl_policy_decode_bounded(wireless_audio_configuration_preferred_range_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_adaptive_linear_acl_policy_decode_bounded(wireless_audio_configuration_adaptive_linear_acl_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_acl_connection_policy_decode_bounded(wireless_audio_configuration_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_automatic_acl_radio_policy_decode_bounded(wireless_audio_configuration_automatic_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_preferred_acl_radio_policy_decode_bounded(wireless_audio_configuration_preferred_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_acl_radio_policy_decode_bounded(wireless_audio_configuration_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_unicast_server_qos_preferences_decode_bounded(wireless_audio_configuration_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_set_acl_connection_policy_decode_bounded(wireless_audio_configuration_set_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_set_acl_radio_policy_decode_bounded(wireless_audio_configuration_set_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_set_unicast_server_qos_preferences_decode_bounded(wireless_audio_configuration_set_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_get_configuration_decode_bounded(wireless_audio_configuration_get_configuration_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_restore_defaults_decode_bounded(wireless_audio_configuration_restore_defaults_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_configuration_command_decode_bounded(wireless_audio_configuration_configuration_command_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_configured_acl_connection_policy_decode_bounded(wireless_audio_configuration_configured_acl_connection_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_configured_acl_radio_policy_decode_bounded(wireless_audio_configuration_configured_acl_radio_policy_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_configured_unicast_server_qos_preferences_decode_bounded(wireless_audio_configuration_configured_unicast_server_qos_preferences_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_command_result_decode_bounded(wireless_audio_configuration_command_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_configuration_response_decode_bounded(wireless_audio_configuration_configuration_response_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_runtime_state_decode_bounded(wireless_audio_configuration_runtime_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t wireless_audio_configuration_capabilities_decode_bounded(wireless_audio_configuration_capabilities_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
 #ifdef __cplusplus
 }
 #endif

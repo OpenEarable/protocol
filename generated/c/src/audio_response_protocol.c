@@ -14,8 +14,9 @@ static protocol_status_t audio_response_transfer_start_write(protocol_writer_t *
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_transfer_start_read(protocol_reader_t *reader, audio_response_transfer_start_t *message) {
+static protocol_status_t audio_response_transfer_start_read(protocol_reader_t *reader, audio_response_transfer_start_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->transfer_id);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->total_samples);
@@ -41,13 +42,22 @@ protocol_status_t audio_response_transfer_start_encode(const audio_response_tran
 
 protocol_status_t audio_response_transfer_start_decode(audio_response_transfer_start_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_transfer_start_read(&reader, message);
+  protocol_status_t status = audio_response_transfer_start_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_transfer_start_decode_bounded(audio_response_transfer_start_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_transfer_start_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -58,8 +68,9 @@ static protocol_status_t audio_response_transfer_commit_write(protocol_writer_t 
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_transfer_commit_read(protocol_reader_t *reader, audio_response_transfer_commit_t *message) {
+static protocol_status_t audio_response_transfer_commit_read(protocol_reader_t *reader, audio_response_transfer_commit_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->transfer_id);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -79,13 +90,22 @@ protocol_status_t audio_response_transfer_commit_encode(const audio_response_tra
 
 protocol_status_t audio_response_transfer_commit_decode(audio_response_transfer_commit_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_transfer_commit_read(&reader, message);
+  protocol_status_t status = audio_response_transfer_commit_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_transfer_commit_decode_bounded(audio_response_transfer_commit_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_transfer_commit_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -96,8 +116,9 @@ static protocol_status_t audio_response_transfer_abort_write(protocol_writer_t *
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_transfer_abort_read(protocol_reader_t *reader, audio_response_transfer_abort_t *message) {
+static protocol_status_t audio_response_transfer_abort_read(protocol_reader_t *reader, audio_response_transfer_abort_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->transfer_id);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -117,13 +138,22 @@ protocol_status_t audio_response_transfer_abort_encode(const audio_response_tran
 
 protocol_status_t audio_response_transfer_abort_decode(audio_response_transfer_abort_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_transfer_abort_read(&reader, message);
+  protocol_status_t status = audio_response_transfer_abort_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_transfer_abort_decode_bounded(audio_response_transfer_abort_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_transfer_abort_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -217,23 +247,24 @@ static protocol_status_t audio_response_transfer_control_write(protocol_writer_t
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_transfer_control_read(protocol_reader_t *reader, audio_response_transfer_control_t *message) {
+static protocol_status_t audio_response_transfer_control_read(protocol_reader_t *reader, audio_response_transfer_control_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   uint8_t raw_type;
   status = protocol_read_uint8(reader, &raw_type);
   if (status != PROTOCOL_OK) return status;
   message->type = (audio_response_transfer_control_type_t)raw_type;
   switch (message->type) {
   case AUDIO_RESPONSE_TRANSFER_CONTROL_START:
-    status = audio_response_transfer_start_read(reader, &message->command.transfer_start);
+    status = audio_response_transfer_start_read(reader, &message->command.transfer_start, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case AUDIO_RESPONSE_TRANSFER_CONTROL_COMMIT:
-    status = audio_response_transfer_commit_read(reader, &message->command.transfer_commit);
+    status = audio_response_transfer_commit_read(reader, &message->command.transfer_commit, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   case AUDIO_RESPONSE_TRANSFER_CONTROL_ABORT:
-    status = audio_response_transfer_abort_read(reader, &message->command.transfer_abort);
+    status = audio_response_transfer_abort_read(reader, &message->command.transfer_abort, bounded);
     if (status != PROTOCOL_OK) return status;
     break;
   default:
@@ -256,13 +287,22 @@ protocol_status_t audio_response_transfer_control_encode(const audio_response_tr
 
 protocol_status_t audio_response_transfer_control_decode(audio_response_transfer_control_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_transfer_control_read(&reader, message);
+  protocol_status_t status = audio_response_transfer_control_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_transfer_control_decode_bounded(audio_response_transfer_control_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_transfer_control_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -274,22 +314,26 @@ static protocol_status_t audio_response_transfer_chunk_write(protocol_writer_t *
   if (status != PROTOCOL_OK) return status;
   status = protocol_write_uint16(writer, message->sample_count);
   if (status != PROTOCOL_OK) return status;
-  for (size_t index = 0; index < message->sample_count; ++index) {
+  if (message->sample_count && message->samples == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->sample_count; ++index) {
     status = protocol_write_int16(writer, message->samples[index]);
     if (status != PROTOCOL_OK) return status;
   }
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_transfer_chunk_read(protocol_reader_t *reader, audio_response_transfer_chunk_t *message) {
+static protocol_status_t audio_response_transfer_chunk_read(protocol_reader_t *reader, audio_response_transfer_chunk_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->transfer_id);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->sample_offset);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint16(reader, &message->sample_count);
   if (status != PROTOCOL_OK) return status;
-  for (size_t index = 0; index < message->sample_count; ++index) {
+  if (bounded && (size_t)message->sample_count > message->samples_capacity) return PROTOCOL_ERROR_BUFFER_TOO_SMALL;
+  if (message->sample_count && message->samples == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->sample_count; ++index) {
     status = protocol_read_int16(reader, &message->samples[index]);
     if (status != PROTOCOL_OK) return status;
   }
@@ -310,13 +354,22 @@ protocol_status_t audio_response_transfer_chunk_encode(const audio_response_tran
 
 protocol_status_t audio_response_transfer_chunk_decode(audio_response_transfer_chunk_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_transfer_chunk_read(&reader, message);
+  protocol_status_t status = audio_response_transfer_chunk_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_transfer_chunk_decode_bounded(audio_response_transfer_chunk_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_transfer_chunk_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -333,8 +386,9 @@ static protocol_status_t audio_response_transfer_status_write(protocol_writer_t 
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_transfer_status_read(protocol_reader_t *reader, audio_response_transfer_status_t *message) {
+static protocol_status_t audio_response_transfer_status_read(protocol_reader_t *reader, audio_response_transfer_status_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint16(reader, &message->transfer_id);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->status);
@@ -360,13 +414,22 @@ protocol_status_t audio_response_transfer_status_encode(const audio_response_tra
 
 protocol_status_t audio_response_transfer_status_decode(audio_response_transfer_status_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_transfer_status_read(&reader, message);
+  protocol_status_t status = audio_response_transfer_status_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_transfer_status_decode_bounded(audio_response_transfer_status_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_transfer_status_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -380,15 +443,17 @@ static protocol_status_t audio_response_config_write(protocol_writer_t *writer, 
   if (status != PROTOCOL_OK) return status;
   status = protocol_write_uint8(writer, message->points);
   if (status != PROTOCOL_OK) return status;
-  for (size_t index = 0; index < message->points; ++index) {
+  if (message->points && message->frequencies == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->points; ++index) {
     status = protocol_write_uint16(writer, message->frequencies[index]);
     if (status != PROTOCOL_OK) return status;
   }
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_config_read(protocol_reader_t *reader, audio_response_config_t *message) {
+static protocol_status_t audio_response_config_read(protocol_reader_t *reader, audio_response_config_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->id);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint16(reader, &message->transfer_id);
@@ -397,7 +462,9 @@ static protocol_status_t audio_response_config_read(protocol_reader_t *reader, a
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->points);
   if (status != PROTOCOL_OK) return status;
-  for (size_t index = 0; index < message->points; ++index) {
+  if (bounded && (size_t)message->points > message->frequencies_capacity) return PROTOCOL_ERROR_BUFFER_TOO_SMALL;
+  if (message->points && message->frequencies == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->points; ++index) {
     status = protocol_read_uint16(reader, &message->frequencies[index]);
     if (status != PROTOCOL_OK) return status;
   }
@@ -418,7 +485,7 @@ protocol_status_t audio_response_config_encode(const audio_response_config_t *me
 
 protocol_status_t audio_response_config_decode(audio_response_config_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_config_read(&reader, message);
+  protocol_status_t status = audio_response_config_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
@@ -428,34 +495,50 @@ protocol_status_t audio_response_config_decode(audio_response_config_t *message,
   return PROTOCOL_OK;
 }
 
+protocol_status_t audio_response_config_decode_bounded(audio_response_config_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_config_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
+  return PROTOCOL_OK;
+}
+
 static protocol_status_t audio_response_result_write(protocol_writer_t *writer, const audio_response_result_t *message) {
   protocol_status_t status;
   status = protocol_write_uint8(writer, message->id);
   if (status != PROTOCOL_OK) return status;
   status = protocol_write_uint8(writer, message->points);
   if (status != PROTOCOL_OK) return status;
-  for (size_t index = 0; index < message->points; ++index) {
+  if (message->points && message->frequencies == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->points; ++index) {
     status = protocol_write_uint16(writer, message->frequencies[index]);
     if (status != PROTOCOL_OK) return status;
   }
-  for (size_t index = 0; index < message->points; ++index) {
+  if (message->points && message->response == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->points; ++index) {
     status = protocol_write_uint16(writer, message->response[index]);
     if (status != PROTOCOL_OK) return status;
   }
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_response_result_read(protocol_reader_t *reader, audio_response_result_t *message) {
+static protocol_status_t audio_response_result_read(protocol_reader_t *reader, audio_response_result_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->id);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->points);
   if (status != PROTOCOL_OK) return status;
-  for (size_t index = 0; index < message->points; ++index) {
+  if (bounded && (size_t)message->points > message->frequencies_capacity) return PROTOCOL_ERROR_BUFFER_TOO_SMALL;
+  if (message->points && message->frequencies == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->points; ++index) {
     status = protocol_read_uint16(reader, &message->frequencies[index]);
     if (status != PROTOCOL_OK) return status;
   }
-  for (size_t index = 0; index < message->points; ++index) {
+  if (bounded && (size_t)message->points > message->response_capacity) return PROTOCOL_ERROR_BUFFER_TOO_SMALL;
+  if (message->points && message->response == NULL) return PROTOCOL_ERROR_INVALID_DATA;
+  for (size_t index = 0; index < (size_t)message->points; ++index) {
     status = protocol_read_uint16(reader, &message->response[index]);
     if (status != PROTOCOL_OK) return status;
   }
@@ -476,13 +559,22 @@ protocol_status_t audio_response_result_encode(const audio_response_result_t *me
 
 protocol_status_t audio_response_result_decode(audio_response_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_response_result_read(&reader, message);
+  protocol_status_t status = audio_response_result_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_response_result_decode_bounded(audio_response_result_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_response_result_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 

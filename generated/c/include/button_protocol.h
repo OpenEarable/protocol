@@ -23,6 +23,9 @@ protocol_status_t button_state_encode(const button_state_t *message, uint8_t *bu
 /** Decode a binary representation into this message. Button action: 0 released, 1 pressed. */
 protocol_status_t button_state_decode(button_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t button_state_decode_bounded(button_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
 #ifdef __cplusplus
 }
 #endif

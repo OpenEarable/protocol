@@ -8,8 +8,9 @@ static protocol_status_t audio_configuration_audio_mode_write(protocol_writer_t 
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_configuration_audio_mode_read(protocol_reader_t *reader, audio_configuration_audio_mode_t *message) {
+static protocol_status_t audio_configuration_audio_mode_read(protocol_reader_t *reader, audio_configuration_audio_mode_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->mode);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -29,13 +30,22 @@ protocol_status_t audio_configuration_audio_mode_encode(const audio_configuratio
 
 protocol_status_t audio_configuration_audio_mode_decode(audio_configuration_audio_mode_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_configuration_audio_mode_read(&reader, message);
+  protocol_status_t status = audio_configuration_audio_mode_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_configuration_audio_mode_decode_bounded(audio_configuration_audio_mode_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_configuration_audio_mode_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -46,8 +56,9 @@ static protocol_status_t audio_configuration_microphone_selection_write(protocol
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_configuration_microphone_selection_read(protocol_reader_t *reader, audio_configuration_microphone_selection_t *message) {
+static protocol_status_t audio_configuration_microphone_selection_read(protocol_reader_t *reader, audio_configuration_microphone_selection_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->microphone);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -67,13 +78,22 @@ protocol_status_t audio_configuration_microphone_selection_encode(const audio_co
 
 protocol_status_t audio_configuration_microphone_selection_decode(audio_configuration_microphone_selection_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_configuration_microphone_selection_read(&reader, message);
+  protocol_status_t status = audio_configuration_microphone_selection_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_configuration_microphone_selection_decode_bounded(audio_configuration_microphone_selection_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_configuration_microphone_selection_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -84,8 +104,9 @@ static protocol_status_t audio_configuration_audio_channel_write(protocol_writer
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_configuration_audio_channel_read(protocol_reader_t *reader, audio_configuration_audio_channel_t *message) {
+static protocol_status_t audio_configuration_audio_channel_read(protocol_reader_t *reader, audio_configuration_audio_channel_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->channel);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -105,13 +126,22 @@ protocol_status_t audio_configuration_audio_channel_encode(const audio_configura
 
 protocol_status_t audio_configuration_audio_channel_decode(audio_configuration_audio_channel_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_configuration_audio_channel_read(&reader, message);
+  protocol_status_t status = audio_configuration_audio_channel_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_configuration_audio_channel_decode_bounded(audio_configuration_audio_channel_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_configuration_audio_channel_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -124,8 +154,9 @@ static protocol_status_t audio_configuration_microphone_gain_write(protocol_writ
   return PROTOCOL_OK;
 }
 
-static protocol_status_t audio_configuration_microphone_gain_read(protocol_reader_t *reader, audio_configuration_microphone_gain_t *message) {
+static protocol_status_t audio_configuration_microphone_gain_read(protocol_reader_t *reader, audio_configuration_microphone_gain_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->outer);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->inner);
@@ -147,13 +178,22 @@ protocol_status_t audio_configuration_microphone_gain_encode(const audio_configu
 
 protocol_status_t audio_configuration_microphone_gain_decode(audio_configuration_microphone_gain_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = audio_configuration_microphone_gain_read(&reader, message);
+  protocol_status_t status = audio_configuration_microphone_gain_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t audio_configuration_microphone_gain_decode_bounded(audio_configuration_microphone_gain_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = audio_configuration_microphone_gain_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 

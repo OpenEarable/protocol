@@ -12,8 +12,9 @@ static protocol_status_t led_rgb_write(protocol_writer_t *writer, const led_rgb_
   return PROTOCOL_OK;
 }
 
-static protocol_status_t led_rgb_read(protocol_reader_t *reader, led_rgb_t *message) {
+static protocol_status_t led_rgb_read(protocol_reader_t *reader, led_rgb_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->red);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint8(reader, &message->green);
@@ -37,13 +38,22 @@ protocol_status_t led_rgb_encode(const led_rgb_t *message, uint8_t *buffer, size
 
 protocol_status_t led_rgb_decode(led_rgb_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = led_rgb_read(&reader, message);
+  protocol_status_t status = led_rgb_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t led_rgb_decode_bounded(led_rgb_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = led_rgb_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -54,8 +64,9 @@ static protocol_status_t led_state_write(protocol_writer_t *writer, const led_st
   return PROTOCOL_OK;
 }
 
-static protocol_status_t led_state_read(protocol_reader_t *reader, led_state_t *message) {
+static protocol_status_t led_state_read(protocol_reader_t *reader, led_state_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint8(reader, &message->mode);
   if (status != PROTOCOL_OK) return status;
   return PROTOCOL_OK;
@@ -75,13 +86,22 @@ protocol_status_t led_state_encode(const led_state_t *message, uint8_t *buffer, 
 
 protocol_status_t led_state_decode(led_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = led_state_read(&reader, message);
+  protocol_status_t status = led_state_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t led_state_decode_bounded(led_state_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = led_state_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 

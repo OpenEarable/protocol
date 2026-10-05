@@ -78,6 +78,18 @@ protocol_status_t audio_configuration_microphone_gain_encode(const audio_configu
  */
 protocol_status_t audio_configuration_microphone_gain_decode(audio_configuration_microphone_gain_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_configuration_audio_mode_decode_bounded(audio_configuration_audio_mode_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_configuration_microphone_selection_decode_bounded(audio_configuration_microphone_selection_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_configuration_audio_channel_decode_bounded(audio_configuration_audio_channel_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t audio_configuration_microphone_gain_decode_bounded(audio_configuration_microphone_gain_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
 #ifdef __cplusplus
 }
 #endif

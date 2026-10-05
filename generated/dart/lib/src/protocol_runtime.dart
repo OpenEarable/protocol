@@ -171,8 +171,15 @@ class ProtocolReader {
   int _offset = 0;
 
   void _require(int length) {
-    if (_offset + length > _bytes.length) {
+    if (length < 0 || _offset + length > _bytes.length) {
       throw const ProtocolFormatException('unexpected end of input');
+    }
+  }
+
+  /// Rejects element counts that cannot fit in the remaining input.
+  void requireElements(int count, int minimumSize) {
+    if (count < 0 || (minimumSize > 0 && count > (_bytes.length - _offset) ~/ minimumSize)) {
+      throw const ProtocolFormatException('array exceeds remaining input');
     }
   }
 
