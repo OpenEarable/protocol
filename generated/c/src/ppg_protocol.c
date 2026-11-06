@@ -14,8 +14,9 @@ static protocol_status_t ppg_legacy_sample_write(protocol_writer_t *writer, cons
   return PROTOCOL_OK;
 }
 
-static protocol_status_t ppg_legacy_sample_read(protocol_reader_t *reader, ppg_legacy_sample_t *message) {
+static protocol_status_t ppg_legacy_sample_read(protocol_reader_t *reader, ppg_legacy_sample_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->red);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->infrared);
@@ -41,13 +42,22 @@ protocol_status_t ppg_legacy_sample_encode(const ppg_legacy_sample_t *message, u
 
 protocol_status_t ppg_legacy_sample_decode(ppg_legacy_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = ppg_legacy_sample_read(&reader, message);
+  protocol_status_t status = ppg_legacy_sample_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t ppg_legacy_sample_decode_bounded(ppg_legacy_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = ppg_legacy_sample_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
@@ -62,8 +72,9 @@ static protocol_status_t ppg_compact_sample_write(protocol_writer_t *writer, con
   return PROTOCOL_OK;
 }
 
-static protocol_status_t ppg_compact_sample_read(protocol_reader_t *reader, ppg_compact_sample_t *message) {
+static protocol_status_t ppg_compact_sample_read(protocol_reader_t *reader, ppg_compact_sample_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_uint32(reader, &message->bits_0_31);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_uint32(reader, &message->bits_32_63);
@@ -87,13 +98,22 @@ protocol_status_t ppg_compact_sample_encode(const ppg_compact_sample_t *message,
 
 protocol_status_t ppg_compact_sample_decode(ppg_compact_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = ppg_compact_sample_read(&reader, message);
+  protocol_status_t status = ppg_compact_sample_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t ppg_compact_sample_decode_bounded(ppg_compact_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = ppg_compact_sample_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 

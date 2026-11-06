@@ -59,6 +59,12 @@ protocol_status_t ppg_compact_sample_encode(const ppg_compact_sample_t *message,
  */
 protocol_status_t ppg_compact_sample_decode(ppg_compact_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
 
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t ppg_legacy_sample_decode_bounded(ppg_legacy_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
+/** Decode using caller-provided capacities on every dynamic field. Output may be partial on failure. */
+protocol_status_t ppg_compact_sample_decode_bounded(ppg_compact_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read);
+
 #ifdef __cplusplus
 }
 #endif

@@ -24,8 +24,9 @@ static protocol_status_t imu_compact_sample_write(protocol_writer_t *writer, con
   return PROTOCOL_OK;
 }
 
-static protocol_status_t imu_compact_sample_read(protocol_reader_t *reader, imu_compact_sample_t *message) {
+static protocol_status_t imu_compact_sample_read(protocol_reader_t *reader, imu_compact_sample_t *message, bool bounded) {
   protocol_status_t status;
+  (void)bounded;
   status = protocol_read_int16(reader, &message->accel_x);
   if (status != PROTOCOL_OK) return status;
   status = protocol_read_int16(reader, &message->accel_y);
@@ -61,13 +62,22 @@ protocol_status_t imu_compact_sample_encode(const imu_compact_sample_t *message,
 
 protocol_status_t imu_compact_sample_decode(imu_compact_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
   protocol_reader_t reader = { buffer, buffer_size, 0 };
-  protocol_status_t status = imu_compact_sample_read(&reader, message);
+  protocol_status_t status = imu_compact_sample_read(&reader, message, false);
   if (status != PROTOCOL_OK) {
     return status;
   }
   if (bytes_read != NULL) {
     *bytes_read = reader.offset;
   }
+  return PROTOCOL_OK;
+}
+
+protocol_status_t imu_compact_sample_decode_bounded(imu_compact_sample_t *message, const uint8_t *buffer, size_t buffer_size, size_t *bytes_read) {
+  protocol_reader_t reader = { buffer, buffer_size, 0 };
+  if (message == NULL || (buffer == NULL && buffer_size != 0)) return PROTOCOL_ERROR_INVALID_DATA;
+  protocol_status_t status = imu_compact_sample_read(&reader, message, true);
+  if (status != PROTOCOL_OK) return status;
+  if (bytes_read != NULL) *bytes_read = reader.offset;
   return PROTOCOL_OK;
 }
 
